@@ -20,11 +20,15 @@ Uint32 check_start_in(Uint32 i) {
 
 	Uint8 *keys = SDL_GetKeyState(0);
 	int b = SDL_JoystickGetHat(stick, 0);
+    
+    int axis = SDL_JoystickGetAxis(stick, 0);
+    int axis2 = SDL_JoystickGetAxis(stick, 1);
+    
 	if(keys[SDLK_UP] 
 #ifdef FOR_PSP
 	|| SDL_JoystickGetButton(stick, 8)
 #else
-	|| b & SDL_HAT_UP
+	|| b & SDL_HAT_UP || axis2 < -1000
 #endif
 		) {
 		if(menu_level == 0 && cl_pos > 0)
@@ -36,7 +40,7 @@ Uint32 check_start_in(Uint32 i) {
 #ifdef FOR_PSP
 	|| SDL_JoystickGetButton(stick, 6)
 #else
-	||	b & SDL_HAT_DOWN 
+	||	b & SDL_HAT_DOWN || axis2 > 1000
 #endif
 		) {
 		if(menu_level == 0 && cl_pos < 2)

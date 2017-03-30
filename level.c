@@ -302,10 +302,12 @@ static int check_input() {
 		if(shoot_ani == 0) { shoot_ani = 1, hero.cur_ani = 5; }
 	}
 
+    int axis2 = SDL_JoystickGetAxis(stick, 0);
+    
 #ifdef FOR_PSP
 	if(SDL_JoystickGetButton(stick, 7)) {
 #else
-	if((keys[SDLK_LEFT] || b & SDL_HAT_LEFT ))  {
+	if((keys[SDLK_LEFT] || b & SDL_HAT_LEFT || axis2 < -1000 ))  {
 #endif
 /*		if(shoot_ani == 0) */ move_left();
 		return 0;
@@ -313,7 +315,7 @@ static int check_input() {
 #ifdef FOR_PSP
 	if(SDL_JoystickGetButton(stick, 9)) {
 #else
-	if((keys[SDLK_RIGHT] || b & SDL_HAT_RIGHT)) {
+	if((keys[SDLK_RIGHT] || b & SDL_HAT_RIGHT || axis2 > 1000)) {
 #endif
 /*		if(shoot_ani == 0)  */ move_right();
 		return 0;
