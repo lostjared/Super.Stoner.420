@@ -246,7 +246,7 @@ int main(int argc, char **argv) {
 	if(!(front = SDL_SetVideoMode(640,480,0,mode)))
 		return -1;
 
-	SDL_WM_SetCaption(" SuperMasterX ", 0);
+	SDL_WM_SetCaption(" Super Stoner 420 ", 0);
 	SDL_JoystickEventState(SDL_ENABLE);
 	stick = SDL_JoystickOpen(0);
 
