@@ -295,10 +295,10 @@ static int check_input() {
 	int b = SDL_JoystickGetHat(stick, 0);
 	static int w = 0;
 
-	if((keys[SDLK_a]  || SDL_JoystickGetButton(stick, 1)) && jump_ok == 1 && jump == 0)
+	if((keys[SDLK_a]  || SDL_JoystickGetButton(stick, 0)) && jump_ok == 1 && jump == 0)
 		jump = 1, shoot_ani = 0;
 
-	if((keys[SDLK_s] || SDL_JoystickGetButton(stick, 2)) && jump_ok == 1 && jump == 0) {
+	if((keys[SDLK_s] || SDL_JoystickGetButton(stick, 1)) && jump_ok == 1 && jump == 0) {
 		if(shoot_ani == 0) { shoot_ani = 1, hero.cur_ani = 5; }
 	}
 

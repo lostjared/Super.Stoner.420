@@ -179,7 +179,7 @@ static void rls() {
 
 	SDL_FreeSurface(bg);
 	SDL_FreeSurface(particles[0]);
-	SDL_FreeSurface(front);
+	//SDL_FreeSurface(front);
 	SDL_FreeSurface(lsd);
 	SDL_FreeSurface(logo);
 	SDL_FreeFont(cfont);
