@@ -1,7 +1,6 @@
 # Super Stoner 420
 
 
-![ScreenShot](https://github.com/lostjared/Super.Stoner.420/blob/master/ss420_2.png?raw=true "screenshot")
 ![ScreenShot](https://github.com/lostjared/Super.Stoner.420/blob/master/ss420_1.png?raw=true "screenshot")
 ![ScreenShot](http://lostsidedead.biz/pictures/ss420_pic.png "screenshot")
 
