@@ -190,6 +190,11 @@ static void rls() {
 	SDL_FreeSurface(bg);
 	SDL_FreeSurface(particles[0]);
 	//SDL_FreeSurface(front);
+	SDL_FreeSurface(lsd);
+	SDL_FreeSurface(logo);
+	SDL_FreeFont(cfont);
+	SDL_FreeFont(font);
+	release_level(level);
 
 #ifdef HAX_MIXER
 	Mix_FreeChunk(fire_snd);
