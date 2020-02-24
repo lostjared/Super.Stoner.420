@@ -61,7 +61,7 @@ Level *load_level(const char *src) {
 
 
 void release_level(Level *lvl) {
-//	free(lvl);
+	free(lvl);
 }
 
 
