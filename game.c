@@ -249,8 +249,9 @@ int main(int argc, char **argv) {
         exit(-1);
     }
 
-current.w = 640;
-current.h = 480;
+	current.w = 640;
+	current.h = 480;
+
 	SDL_ShowCursor(SDL_FALSE);
 	ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
     window = SDL_CreateWindow("Super Stoner 420", 0, 0, current.w, current.h, SDL_WINDOW_SHOWN);
