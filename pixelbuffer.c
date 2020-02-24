@@ -5,32 +5,7 @@ void *lock(SDL_Surface *surf, Uint8 type) {
 		if(SDL_LockSurface(surf) < 0)
 			return 0;
 	}
-
-	type = surf->format->BitsPerPixel;
-
-	switch(surf->format->BitsPerPixel) {
-		case 1:
-		case 8:
-			return (Uint8*)surf->pixels;
-			break;
-		case 16:
-		case 2:
-			return (Uint16*)surf->pixels;
-			break;
-		case 24:
-		case 3:
-			return (Uint32*)surf->pixels;
-			break;
-		case 32:
-		case 4:
-			return (Uint32*)surf->pixels;
-			break;
-		default:
-			break;
-	}
-
-	return 0;
-
+	return surf->pixels;
 }
 
 

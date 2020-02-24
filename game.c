@@ -32,9 +32,9 @@ static const char *level_str[] = { "", "SuperMaster2/", 0 };
 
 void reload_level() {
 	char sbuf[256];
-	SDL_FillRect(front, 0, 0);
-	SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 0, 0), "Loading...");
-	SDL_Flip(front);
+	//SDL_FillRect(front, 0, 0);
+	//SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 0, 0), "Loading...");
+	//SDL_Flip(front);
 	if(cur_level >= 8)
 		cur_level = 0;
 
@@ -67,7 +67,8 @@ void init_game() {
 	cur_level = 0;
 	reload_level();
 	cur_scr = ID_START;
-	SDL_SetTimer(225, check_start_in);
+	//SDL_SetTimer(225, check_start_in);
+    SDL_AddTimer(225, check_start_in, 0);
 
 }
 		
@@ -77,14 +78,15 @@ static void init() {
 
 	font = SDL_InitFont(get_path("D:\\", "font/system.mxf"));
 	cfont = SDL_InitFont(get_path("D:\\", "font/e.mxf"));
-	SDL_FillRect(front, 0, 0);
-	SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading..");
-	SDL_Flip(front);
+	//SDL_FillRect(front, 0, 0);
+	//SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading..");
+	//SDL_Flip(front);
 	init_game();
-	SDL_SetTimer(1000, intro_wait);
-	SDL_FillRect(front, 0, 0);
-	SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading.. Bitmaps");
-	SDL_Flip(front);
+	//SDL_SetTimer(1000, intro_wait);
+    SDL_AddTimer(1000, intro_wait, 0);
+	//SDL_FillRect(front, 0, 0);
+	//SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading.. Bitmaps");
+	//SDL_Flip(front);
 
 	particles[0] = SDL_LoadBMP(get_path("D:\\", "img/shot.bmp"));
 	lsd = SDL_LoadBMP(get_path("D:\\", "img/lsd.bmp"));
@@ -132,9 +134,9 @@ static void init() {
 		}
 	}
 
-	SDL_FillRect(front, 0, 0);
-	SDL_PrintText(front, cfont, 25, 25, SDL_MapRGB(front->format, 0, 0, 255), "Loading Sound Effects...");
-	SDL_Flip(front);
+	//SDL_FillRect(front, 0, 0);
+	//SDL_PrintText(front, cfont, 25, 25, SDL_MapRGB(front->format, 0, 0, 255), "Loading Sound Effects...");
+	//SDL_Flip(front);
 	bg = SDL_LoadBMP(get_path("D:\\", "img/bg.bmp"));
 	
 	#ifdef HAS_MIXER
@@ -148,9 +150,9 @@ static void init() {
 
 	
 	
-	SDL_FillRect(front, 0, 0);
-	SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading.. Done");
-	SDL_Flip(front);
+//	SDL_FillRect(front, 0, 0);
+//	SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading.. Done");
+	//SDL_Flip(front);
 
 #ifdef HAS_MIXER
 	if(intro_snd != 0)
@@ -161,6 +163,10 @@ static void init() {
 
 
 }
+
+SDL_Window *window;
+SDL_Renderer *renderer;
+SDL_Texture *tex;
 
 static void rls() {
 
@@ -177,14 +183,13 @@ static void rls() {
 	for( i = 0; i < COLLECT_NUM; i++)
 		SDL_FreeSurface(collect[i]);
 
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyTexture(tex);
+    SDL_DestroyWindow(window);
+    
 	SDL_FreeSurface(bg);
 	SDL_FreeSurface(particles[0]);
 	//SDL_FreeSurface(front);
-	SDL_FreeSurface(lsd);
-	SDL_FreeSurface(logo);
-	SDL_FreeFont(cfont);
-	SDL_FreeFont(font);
-	release_level(level);
 
 #ifdef HAX_MIXER
 	Mix_FreeChunk(fire_snd);
@@ -236,20 +241,57 @@ int main(int argc, char **argv) {
 	scePowerSetClockFrequency(333, 333, 166); //# overclocked
 #endif
 
+    SDL_DisplayMode current;
+    
+    if(SDL_GetCurrentDisplayMode(0, &current) != 0) {
+        fprintf(stderr, "Error could not get display mode: %s", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
 
+current.w = 640;
+current.h = 480;
 	SDL_ShowCursor(SDL_FALSE);
 	ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
-	SDL_WM_SetIcon(ico, 0);
-	if(argc == 2 && strcmp(argv[1], "--full") == 0)
-		mode = SDL_FULLSCREEN;
+    window = SDL_CreateWindow("Super Stoner 420", 0, 0, current.w, current.h, SDL_WINDOW_SHOWN);
+    if(!window) {
+        fprintf(stderr, "Error creating window: %s\n", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+    
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    
+    if(!renderer) {
+        fprintf(stderr, "Error creating Renderer: %s\n", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
 
-	if(!(front = SDL_SetVideoMode(640,480,0,mode)))
-		return -1;
-
-	SDL_WM_SetCaption(" Super Stoner 420 ", 0);
+	//SDL_WM_SetCaption(" Super Stoner 420 ", 0);
 	SDL_JoystickEventState(SDL_ENABLE);
 	stick = SDL_JoystickOpen(0);
 
+    tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
+    
+    if(!tex) {
+        fprintf(stderr, "Error creating texture: %s", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+    
+    front = SDL_CreateRGBSurfaceFrom(NULL, 640, 480, 32, 0, 0x00FF0000, 0x0000FF00,0x000000FF,0xFF000000);
+    
+    //SDL_FillRect(front, 0, 0);
+    
+    if(!front) {
+        fprintf(stderr, "Error creating surface: %s", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+    
+    
+    
 	if(argc == 3 && strcmp(argv[1], "--run") == 0)
 	{
 		//custom_level = 1;
@@ -275,8 +317,11 @@ int main(int argc, char **argv) {
 
 		while(active == 1) {
 
-			SDL_FillRect(front, 0, 0);
+			//SDL_FillRect(front, 0, 0);
+            
+            SDL_LockTexture(tex, 0, &front->pixels, &front->pitch);
 			render();
+            SDL_UnlockTexture(tex);
 			if(SDL_PollEvent(&e)) {
 				switch(e.type) {
 					case SDL_QUIT:
@@ -302,7 +347,33 @@ int main(int argc, char **argv) {
 				}
 			}
 
-			SDL_Flip(front);
+			//SDL_Flip(front);
+            
+            
+            int cx = 1440, cy = 1080;
+            
+            switch(current.h) {
+                case 480:
+                    cx = 640;
+                    cy = 480;
+                    break;
+                case 720:
+                    cx = 960;
+                    cy = 720;
+                    break;
+                case 1080:
+                    cx = 1440;
+                    cy = 1080;
+                    break;
+            }
+            
+            int over = (current.w/2)-(cx/2);
+            
+            SDL_Rect dst = { over, 0, cx, cy };
+            SDL_RenderClear(renderer);
+            SDL_RenderCopy(renderer, tex, 0, &dst);
+            SDL_RenderPresent(renderer);
+            SDL_Delay(10);
 		}
 
 

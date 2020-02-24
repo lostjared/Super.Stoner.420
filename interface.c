@@ -9,47 +9,46 @@ int cl_pos = 0, cl2_pos = 0;
 int menu_level = 0;
 
 
-Uint32 intro_wait(Uint32 i) {
+Uint32 intro_wait(Uint32 i, void *v) {
 	shown_logo = 1;
-	SDL_SetTimer(225, check_start_in);
+	SDL_AddTimer(225, check_start_in, 0);
 	return 0;
 }
 
-Uint32 check_start_in(Uint32 i) {
-
-
-	Uint8 *keys = SDL_GetKeyState(0);
+Uint32 check_start_in(Uint32 i, void *v) {
+	const Uint8 *keys = SDL_GetKeyboardState(0);
 	int b = SDL_JoystickGetHat(stick, 0);
     
     int axis = SDL_JoystickGetAxis(stick, 0);
     int axis2 = SDL_JoystickGetAxis(stick, 1);
     
-	if(keys[SDLK_UP] 
+	if(keys[SDL_SCANCODE_UP]
 #ifdef FOR_PSP
 	|| SDL_JoystickGetButton(stick, 8)
 #else
 	|| b & SDL_HAT_UP || axis2 < -1000
 #endif
-		) {
+      	) {
 		if(menu_level == 0 && cl_pos > 0)
 			cl_pos--;
 		if(menu_level == 1 && cl2_pos > 0)
 			cl2_pos--;
 	}
-	else if(keys[SDLK_DOWN] 
+	else if(keys[SDL_SCANCODE_DOWN]
 #ifdef FOR_PSP
 	|| SDL_JoystickGetButton(stick, 6)
 #else
 	||	b & SDL_HAT_DOWN || axis2 > 1000
 #endif
-		) {
+            )
+    	 {
 		if(menu_level == 0 && cl_pos < 2)
 			cl_pos++;
 		if(menu_level == 1 && cl2_pos < 1)
 			cl2_pos++;
 	}
 
-	else if(keys[SDLK_SPACE] || SDL_JoystickGetButton(stick, 2))
+	else if(keys[SDL_SCANCODE_SPACE] || SDL_JoystickGetButton(stick, 2))
 	{
 		switch(menu_level) {
 			case 0:
@@ -80,9 +79,6 @@ Uint32 check_start_in(Uint32 i) {
 			break;
 		}
 	}
-
-
-
 	return i;
 }
 
@@ -102,7 +98,7 @@ void render_start() {
 			SDL_PrintText(front, font, 125, 175+100, SDL_MapRGB(front->format, 255, 255, 0), "Exit");
 			{
 				SDL_Rect rc = { 125, front->h-100-hgfx[0]->h , hgfx[0]->w, hgfx[0]->h };
-				SDL_SetColorKey( hgfx[0] , SDL_SRCCOLORKEY, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
+				SDL_SetColorKey( hgfx[0] , SDL_TRUE, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
 				SDL_BlitSurface( hgfx[0], 0, front, &rc );
 				{
 					int cx = 100, cy = 175;
@@ -117,7 +113,7 @@ void render_start() {
 			SDL_PrintText(front, cfont, 125, 175+50, SDL_MapRGB(front->format, 255, 0, 0), " Old SuperMaster2 Levels");
 			{
 				SDL_Rect rc = { 125, front->h-100-hgfx[0]->h , hgfx[0]->w, hgfx[0]->h };
-				SDL_SetColorKey( hgfx[0] , SDL_SRCCOLORKEY, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
+				SDL_SetColorKey( hgfx[0] , SDL_TRUE, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
 				SDL_BlitSurface( hgfx[0], 0, front, &rc );
 				{
 					int cx = 100, cy = 175;
@@ -133,15 +129,15 @@ void render_start() {
 }
 
 void check_enter_in() {
-	Uint8 *keys = SDL_GetKeyState(0);
+	const Uint8 *keys = SDL_GetKeyboardState(0);
 #ifdef FOR_PSP
 	if(SDL_JoystickGetButton(stick, 11))
 #else
-	if(keys[SDLK_RETURN] || SDL_JoystickGetButton(stick, 1))
+	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1))
 #endif
 	{	cur_scr = ID_GAME; 	
 
-	SDL_SetTimer(75,proccess_game );
+	SDL_AddTimer(75,proccess_game, 0);
 
 #ifdef FOR_PSP
 	SDL_SetTimer(25, proccess_game);
@@ -163,7 +159,7 @@ void render_enter_level() {
 		SDL_Rect rc = { 50, 50, 640-100, 480-100 };
 		SDL_Rect rc2 = { 100, 100, hgfx[0]->w, hgfx[0]->h };
 		SDL_FillRect( front, &rc, 0);
-		SDL_SetColorKey(hgfx[0] , SDL_SRCCOLORKEY, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
+		SDL_SetColorKey(hgfx[0] , SDL_TRUE, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
 		SDL_BlitSurface( hgfx[0] , 0, front, &rc2 );
 		{
 			static char sbuf[256], lifebuf[256];
@@ -186,12 +182,12 @@ void render_enter_level() {
 
 static void credits_in() {
 
-	Uint8 *keys = SDL_GetKeyState(0);
+	const Uint8 *keys = SDL_GetKeyboardState(0);
 	
 #ifdef FOR_PSP
 	if( SDL_JoystickGetButton(stick, 11) )
 #else
-	if(keys[SDLK_RETURN] || SDL_JoystickGetButton(stick, 1))
+	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1))
 #endif
 
 		cur_scr = ID_START;
@@ -237,7 +233,7 @@ void render_credits() {
 				SDL_Rect rcX = { 125, 315, hgfx[4]->w, hgfx[4]->h };
 
 				SDL_FillRect(front, &rc, 0);
-				SDL_SetColorKey(hgfx[4], SDL_SRCCOLORKEY, SDL_MapRGB(front->format, 255, 255, 255));
+				SDL_SetColorKey(hgfx[4], SDL_TRUE, SDL_MapRGB(front->format, 255, 255, 255));
 				SDL_BlitSurface( hgfx[4], 0, front, &rcX);
 				{
 					SDL_Rect rcY = { 0, 0, evil_gfx[0].gfx[0]->w, evil_gfx[0].gfx[0]->h };

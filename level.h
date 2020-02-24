@@ -61,7 +61,7 @@ extern void release_level(Level *);
 extern void render_map(SDL_Surface *surf, Level *lvl);
 extern void scroll_left();
 extern void scroll_right();
-extern Uint32 proccess_game(Uint32 interval);
+extern Uint32 proccess_game(Uint32 interval, void *);
 extern void reload_level();
 extern void init_particles(Emiter *);
 extern void proc_particles(Emiter *);

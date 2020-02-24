@@ -61,7 +61,7 @@ Level *load_level(const char *src) {
 
 
 void release_level(Level *lvl) {
-	free(lvl);
+//	free(lvl);
 }
 
 
@@ -148,7 +148,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 			SDL_Rect rc = { bx, by, hgfx[hero.cur_ani]->w-1, hgfx[hero.cur_ani]->h };
 			if(i == hero.hpos) {
 				hero.x = bx, hero.y = by;
-				SDL_SetColorKey(hgfx[hero.cur_ani], SDL_SRCCOLORKEY, SDL_MapRGB(hgfx[hero.cur_ani]->format, 255, 255, 255));
+				SDL_SetColorKey(hgfx[hero.cur_ani], SDL_TRUE, SDL_MapRGB(hgfx[hero.cur_ani]->format, 255, 255, 255));
 				if(hero.dir == 1)
 				SDL_BlitSurface( hgfx[hero.cur_ani], 0, surf, &rc);
 				else {
@@ -161,7 +161,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 				for(pos = 0; pos < MAX_PARTICLE; pos++) {
 					if(emiter.p[pos].type != 0 && emiter.p[pos].vpos == i+offset) {
 						SDL_Rect rcX = { bx, by, particles[0]->w, particles[0]->h };
-						SDL_SetColorKey(particles[0], SDL_SRCCOLORKEY, SDL_MapRGB(particles[0]->format, 255, 255, 255));
+						SDL_SetColorKey(particles[0], SDL_TRUE, SDL_MapRGB(particles[0]->format, 255, 255, 255));
 						SDL_BlitSurface(particles[0], 0, surf, &rcX );
 						emiter.p[pos].x = bx, emiter.p[pos].y = by;
 					}
@@ -174,7 +174,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 						SDL_Rect erc = { 0,  0, evil[pos].egfx->gfx[evil[pos].type]->w-1, evil[pos].egfx->gfx[evil[pos].type]->h };
 						SDL_Rect prc = { bx, by, evil[pos].egfx->gfx[evil[pos].type]->w, evil[pos].egfx->gfx[evil[pos].type]->h };
 						if(evil[pos].dir == 1) {
-							SDL_SetColorKey(evil[pos].egfx->gfx[evil[pos].cur_ani], SDL_SRCCOLORKEY, SDL_MapRGB(evil[pos].egfx->gfx[evil[pos].cur_ani]->format, 255, 255, 255));
+							SDL_SetColorKey(evil[pos].egfx->gfx[evil[pos].cur_ani], SDL_TRUE, SDL_MapRGB(evil[pos].egfx->gfx[evil[pos].cur_ani]->format, 255, 255, 255));
 							SDL_BlitSurface(evil[pos].egfx->gfx[evil[pos].cur_ani], 0, surf, &prc);
 						}
 						else
@@ -185,7 +185,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 
 					if(level->items[pos].type != 0 && level->items[pos].vpos == i+offset) {
 						SDL_Rect rc = { bx, by, collect[level->items[pos].type]->w, collect[level->items[pos].type]->h };
-						SDL_SetColorKey(collect[level->items[pos].type], SDL_SRCCOLORKEY, SDL_MapRGB(collect[level->items[pos].type]->format, 255, 255, 255));
+						SDL_SetColorKey(collect[level->items[pos].type], SDL_TRUE, SDL_MapRGB(collect[level->items[pos].type]->format, 255, 255, 255));
 						SDL_BlitSurface(collect[level->items[pos].type], 0, surf, &rc);
 					}
 				}
@@ -291,15 +291,16 @@ static void rls_bullet() {
 
 static int check_input() {
 
-	Uint8 *keys = SDL_GetKeyState(0);
+	const Uint8 *keys = SDL_GetKeyboardState(0);
 	int b = SDL_JoystickGetHat(stick, 0);
 	static int w = 0;
 
-	if((keys[SDLK_a]  || SDL_JoystickGetButton(stick, 0)) && jump_ok == 1 && jump == 0)
+	if((keys[SDL_SCANCODE_A]  || SDL_JoystickGetButton(stick, 0)) && jump_ok == 1 && jump == 0)
 		jump = 1, shoot_ani = 0;
 
-	if((keys[SDLK_s] || SDL_JoystickGetButton(stick, 1)) && jump_ok == 1 && jump == 0) {
-		if(shoot_ani == 0) { shoot_ani = 1, hero.cur_ani = 5; }
+	if((keys[SDL_SCANCODE_S] || SDL_JoystickGetButton(stick, 1)) && jump_ok == 1 && jump == 0) {
+
+        if(shoot_ani == 0) { shoot_ani = 1, hero.cur_ani = 5; }
 	}
 
     int axis2 = SDL_JoystickGetAxis(stick, 0);
@@ -307,7 +308,8 @@ static int check_input() {
 #ifdef FOR_PSP
 	if(SDL_JoystickGetButton(stick, 7)) {
 #else
-	if((keys[SDLK_LEFT] || b & SDL_HAT_LEFT || axis2 < -1000 ))  {
+	if((keys[SDL_SCANCODE_LEFT] || b & SDL_HAT_LEFT || axis2 < -1000))  {
+
 #endif
 /*		if(shoot_ani == 0) */ move_left();
 		return 0;
@@ -315,7 +317,7 @@ static int check_input() {
 #ifdef FOR_PSP
 	if(SDL_JoystickGetButton(stick, 9)) {
 #else
-	if((keys[SDLK_RIGHT] || b & SDL_HAT_RIGHT || axis2 > 1000)) {
+	if((keys[SDL_SCANCODE_RIGHT] || b & SDL_HAT_RIGHT || axis2 > 1000)) {
 #endif
 /*		if(shoot_ani == 0)  */ move_right();
 		return 0;
@@ -356,7 +358,7 @@ static void proc_collect() {
 
 }
 
-Uint32 proccess_game(Uint32 interval) {
+Uint32 proccess_game(Uint32 interval, void *p) {
 
 	if(level == 0)
 		return interval;

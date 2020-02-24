@@ -1,7 +1,7 @@
 #ifndef __MXFONT__H_
 #define __MXFONT__H_
 
-#include<SDL.h>
+#include"SDL.h"
 #include<string.h>
 
 struct SDL_Font {

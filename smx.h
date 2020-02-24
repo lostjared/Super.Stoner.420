@@ -22,14 +22,14 @@ extern void render_enter_level();
 extern void render_credits();
 extern void render_pause();
 extern char *get_path(const char *p, const char *s);
-extern Uint32 intro_wait(Uint32 i);
-extern Uint32 check_start_in(Uint32);
+extern Uint32 intro_wait(Uint32 i, void *);
+extern Uint32 check_start_in(Uint32, void *);
 extern int cur_scr, active, cur_levels;
 extern int custom_level;
 extern char custom_lvl[256];
 
 #ifdef HAS_MIXER
-#include<SDL_mixer.h>
+#include"SDL_mixer.h"
 extern Mix_Chunk *intro_snd , *collect_snd, *fire_snd, *kill_snd;
 extern Mix_Music *game_track;
 #endif
