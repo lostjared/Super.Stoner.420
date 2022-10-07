@@ -162,7 +162,7 @@ void render_enter_level() {
 		SDL_SetColorKey(hgfx[0] , SDL_TRUE, SDL_MapRGB(hgfx[0]->format, 255, 255, 255));
 		SDL_BlitSurface( hgfx[0] , 0, front, &rc2 );
 		{
-			static char sbuf[256], lifebuf[256];
+			static char sbuf[1024], lifebuf[1024];
 			sprintf(sbuf, "Now Entering Level %s", level->level_name);
 			sprintf(lifebuf, "Lives: %d", lives);
 			SDL_PrintText(front, font, 150, 100, SDL_MapRGB(front->format, 255, 255, rand()%255), sbuf);
