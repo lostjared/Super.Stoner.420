@@ -239,6 +239,11 @@ void XBoxStartup() {
         SDL_Surface *ico = 0;
         int WIDTH=960, HEIGHT=720;
         
+        if(argc == 4 && strcmp(argv[1], "--size") == 0) {
+            WIDTH = atoi(argv[2]);
+            HEIGHT = atoi(argv[3]);
+        }
+        
         if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
             return -1;
         
