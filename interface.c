@@ -135,9 +135,15 @@ void check_enter_in() {
 #else
 	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1))
 #endif
-	{	cur_scr = ID_GAME; 	
+	{
+        static int lazy = 1;
+        
+        cur_scr = ID_GAME;
 
-	SDL_AddTimer(75,proccess_game, 0);
+        if(lazy == 1) {
+            SDL_AddTimer(75,proccess_game, 0);
+            lazy = 0;
+        }
 
 #ifdef FOR_PSP
 	SDL_SetTimer(25, proccess_game);
