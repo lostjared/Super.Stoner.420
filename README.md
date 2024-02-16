@@ -6,14 +6,15 @@
 
  * Updated
 
-Fixed an old bug, and made it so if you pass
 
-./SuperStoner --size 1440 1080
+Resolved a longstanding issue and updated the feature allowing users to adjust the window size by executing:
 
-you can set the Window size.
+    ./SuperStoner --size 1440 1080
 
 
-This is a old joke game I wrote many years ago. Its a simple platform style game
-where the user controls a guy who looks similar to mario and collects items and
-avoids enemies. The project requires SDL_mixer and SDL_ttf and SDL 1.2.
-The Makefile will output the SuperStoner420 directory where you can run the game.
+This game, SuperStoner, is a humorous platformer I developed some time ago. It features gameplay where the player maneuvers a character resembling Mario, engaging in item collection and enemy avoidance. To run this project, SDL_mixer, SDL_ttf, and SDL 1.2 are necessary. Compiling the game through the provided Makefile generates the SuperStoner420 directory, from which the game can be launched.
+
+This game is just a joke, so don't take it seriously...
+
+
+
