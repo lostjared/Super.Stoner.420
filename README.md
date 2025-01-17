@@ -12,7 +12,7 @@ Resolved a longstanding issue and updated the feature allowing users to adjust t
     ./SuperStoner --size 1440 1080
 
 
-This game, SuperStoner, is a humorous platformer I developed some time ago. It features gameplay where the player maneuvers a character resembling Mario, engaging in item collection and enemy avoidance. To run this project, SDL2_mixer, SDL2_ttf, and SDL 2 are necessary. Compiling the game through the provided Makefile generates the SuperStoner420 directory, from which the game can be launched.
+This game, SuperStoner, is a humorous platformer I developed some time ago. It features gameplay where the player maneuvers a character resembling Mario, engaging in item collection and enemy avoidance. To run this project, SDL2_mixer, and SDL 2 are necessary. Compiling the game through the provided Makefile generates the SuperStoner420 directory, from which the game can be launched.
 
 This game is just a joke, so don't take it seriously...
 
