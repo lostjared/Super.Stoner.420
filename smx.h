@@ -2,14 +2,12 @@
 #define __SMX__H_
 #include"SDL_mxf.h"
 #include<stdio.h>
-
 #ifndef __INCLUDED_PLATFORM_INFO__
 #define __INCLUDED_PLATFORM_INFO__
 #include "platform.h"
 #endif
 #define COLLECT_NUM 6
 enum { ID_ENTER = 1, ID_GAME, ID_START , ID_CREDITS, ID_GAMEOVER , ID_PAUSED };
-
 extern SDL_Surface *gfx[16], *front, *hgfx[12], *particles[4], *bg, *collect[8], *lsd, *logo;
 extern struct SDL_Font *font, *cfont;
 extern SDL_Joystick *stick;
@@ -27,14 +25,9 @@ extern Uint32 check_start_in(Uint32, void *);
 extern int cur_scr, active, cur_levels;
 extern int custom_level;
 extern char custom_lvl[256];
-
 #ifdef HAS_MIXER
 #include"SDL_mixer.h"
 extern Mix_Chunk *intro_snd , *collect_snd, *fire_snd, *kill_snd;
 extern Mix_Music *game_track;
 #endif
-
-
 #endif
-
-

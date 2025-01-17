@@ -1,16 +1,11 @@
 #include "level.h"
 #include "smx.h"
-
 #ifdef HAS_MIXER
 Mix_Chunk *intro_snd = 0, *collect_snd = 0, *fire_snd = 0, *kill_snd = 0;
 Mix_Music *game_track;
 #endif
-
 struct SDL_Font *font = 0, *cfont = 0;
-
 extern void render_start();
-
-
 int cur_scr = ID_ENTER;
 SDL_Surface *front = 0;
 SDL_Surface *gfx[16], *hgfx[12], *particles[4], *bg, *collect[8], *lsd, *logo;
@@ -27,31 +22,23 @@ int cur_level = 0;
 int score = 0, lives = 0;
 int active = 1;
 int cur_levels = 0;
-
 static const char *level_str[] = { "", "SuperMaster2/", 0 };
+extern SDL_TimerID proc_game;
 
 void reload_level() {
     char sbuf[256];
-    //SDL_FillRect(front, 0, 0);
-    //SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 0, 0), "Loading...");
-    //SDL_Flip(front);
     if(cur_level >= 8)
         cur_level = 0;
-    
     if(custom_level == 0)
         sprintf(sbuf,"%slevel/level%d.sml", level_str[cur_levels], ++cur_level);
     else
         strcpy(sbuf, custom_lvl);
-    
     if(level != 0) release_level(level);
     level = load_level(sbuf);
-    
     hero.hpos = level->start_pos;
     srand((unsigned int) SDL_GetTicks() );
-    
     {
         unsigned int i = 0;
-        
         for(; i < 50; i++) {
             if(level->items[i].type != 0) do { level->items[i].type = rand()%COLLECT_NUM; } while( level->items[i].type == 0 );
         }
@@ -59,35 +46,23 @@ void reload_level() {
     offset = 0;
     init_particles(&emiter);
     cur_scr = ID_ENTER;
-    
 }
+
+SDL_TimerID check_in = 0;
 
 void init_game() {
     score = 0, lives = 10;
     cur_level = 0;
     reload_level();
     cur_scr = ID_START;
-    //SDL_SetTimer(225, check_start_in);
-    SDL_AddTimer(225, check_start_in, 0);
-    
+    check_in = SDL_AddTimer(225, check_start_in, 0);
 }
-
 static void init() {
-    
     Uint8 i = 0;
-    
     font = SDL_InitFont(get_path("D:\\", "font/system.mxf"));
     cfont = SDL_InitFont(get_path("D:\\", "font/e.mxf"));
-    //SDL_FillRect(front, 0, 0);
-    //SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading..");
-    //SDL_Flip(front);
     init_game();
-    //SDL_SetTimer(1000, intro_wait);
     SDL_AddTimer(1000, intro_wait, 0);
-    //SDL_FillRect(front, 0, 0);
-    //SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading.. Bitmaps");
-    //SDL_Flip(front);
-    
     particles[0] = SDL_LoadBMP(get_path("D:\\", "img/shot.bmp"));
     lsd = SDL_LoadBMP(get_path("D:\\", "img/lsd.bmp"));
     logo = SDL_LoadBMP(get_path("D:\\", "img/logo.bmp"));
@@ -105,7 +80,6 @@ static void init() {
         if(!hgfx[i])
             fprintf(stderr, "Error couldnt load graphic %s\n", sbuf);
     }
-    
     for(i = 0; i < COLLECT_NUM; i++) {
         static char sbuf[256];
         sprintf(sbuf, "img/col%d.bmp", i+1);
@@ -113,14 +87,9 @@ static void init() {
         if(!collect[i])
             fprintf(stderr, "Error couldnt load graphic %s\n", sbuf);
     }
-    
     {
-        
-        
         for( i = 0; ev[i] != 0; i++ ) {
-            
             unsigned int z;
-            
             for( z = 0; z < 10; z++ ) {
                 static char sbuf[256];
                 memset(sbuf, 0, sizeof(sbuf));
@@ -129,49 +98,31 @@ static void init() {
                 if(!evil_gfx[i].gfx[z])
                     fprintf(stderr, "Couldnt load %s ", sbuf);
             }
-            
             evil_gfx[i].type = i;
         }
     }
-    
-    //SDL_FillRect(front, 0, 0);
-    //SDL_PrintText(front, cfont, 25, 25, SDL_MapRGB(front->format, 0, 0, 255), "Loading Sound Effects...");
-    //SDL_Flip(front);
     bg = SDL_LoadBMP(get_path("D:\\", "img/bg.bmp"));
-    
 #ifdef HAS_MIXER
     Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
     intro_snd = Mix_LoadWAV(get_path("D:\\", "snd/open.wav"));
     collect_snd = Mix_LoadWAV(get_path("D:\\", "snd/line.wav"));
     fire_snd = Mix_LoadWAV(get_path("D:\\", "snd/fire.wav"));
     kill_snd = Mix_LoadWAV(get_path("D:\\", "snd/scream.wav"));
-    //game_track = Mix_LoadMUS(get_path("D:\\", "snd/theme.ogg"));
 #endif
-    
-    
-    
-    //	SDL_FillRect(front, 0, 0);
-    //	SDL_PrintText(front, font, 25, 25, SDL_MapRGB(front->format, 255, 255, 255), "Loading.. Done");
-    //SDL_Flip(front);
-    
 #ifdef HAS_MIXER
     if(intro_snd != 0)
         Mix_PlayChannel( -1, intro_snd, 0);
-    //	if(game_track != 0);
-    //Mix_PlayMusic(game_track, -1);
 #endif
-    
-    
 }
-
 SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *tex;
-
 static void rls() {
-    
+
+     if(check_in != 0)
+	SDL_RemoveTimer(check_in);
+
     Uint8 i = 0, z = 0;
-    
     for( i = 0; img_str[i] != 0; i++)
         SDL_FreeSurface(gfx[i]);
     for( i = 0; hstr[i] != 0; i++)
@@ -179,35 +130,27 @@ static void rls() {
     for ( i = 0; ev[i] != 0; i++)
         for(z = 0; z < 10; z++)
             SDL_FreeSurface(evil_gfx[i].gfx[z]);
-    
     for( i = 0; i < COLLECT_NUM; i++)
         SDL_FreeSurface(collect[i]);
-    
     SDL_DestroyRenderer(renderer);
     SDL_DestroyTexture(tex);
     SDL_DestroyWindow(window);
-    
     SDL_FreeSurface(bg);
     SDL_FreeSurface(particles[0]);
-    //SDL_FreeSurface(front);
     SDL_FreeSurface(lsd);
     SDL_FreeSurface(logo);
     SDL_FreeFont(cfont);
     SDL_FreeFont(font);
     release_level(level);
-    
 #ifdef HAX_MIXER
     Mix_FreeChunk(fire_snd);
     Mix_FreeChunk(collect_snd);
     Mix_FreeChunk(intro_snd);
     Mix_FreeChunk(kill_snd);
-    //Mix_FreeMusic(game_track);
     Mix_HaltMusic();
     Mix_CloseAudio();
 #endif
-    
 }
-
 static void render() {
     switch(cur_scr) {
         case ID_GAME:
@@ -227,7 +170,6 @@ static void render() {
             break;
     }
 }
-
 #ifdef FOR_XBOX_OPENXDK
 void XBoxStartup() {
     char **argv = 0;
@@ -238,81 +180,61 @@ void XBoxStartup() {
         Uint32 mode = 0;
         SDL_Surface *ico = 0;
         int WIDTH=960, HEIGHT=720;
-        
         if(argc == 4 && strcmp(argv[1], "--size") == 0) {
             WIDTH = atoi(argv[2]);
             HEIGHT = atoi(argv[3]);
         }
-        
         if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
             return -1;
-        
 #ifdef FOR_PSP
-        scePowerSetClockFrequency(333, 333, 166); //# overclocked
+        scePowerSetClockFrequency(333, 333, 166); 
 #endif
-        
         SDL_DisplayMode current;
-        
         if(SDL_GetCurrentDisplayMode(0, &current) != 0) {
             fprintf(stderr, "Error could not get display mode: %s", SDL_GetError());
             SDL_Quit();
             exit(-1);
         }
-        
         current.w = 640;
         current.h = 480;
-        
         SDL_ShowCursor(SDL_FALSE);
         ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
-        window = SDL_CreateWindow("Super Stoner 420", 0, 0, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+        window = SDL_CreateWindow("Super Stoner 420", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
         if(!window) {
             fprintf(stderr, "Error creating window: %s\n", SDL_GetError());
             SDL_Quit();
             exit(-1);
         }
-        
+	SDL_SetWindowIcon(window, ico);
+	SDL_FreeSurface(ico);
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-        
         if(!renderer) {
             fprintf(stderr, "Error creating Renderer: %s\n", SDL_GetError());
             SDL_Quit();
             exit(-1);
         }
-        
-        //SDL_WM_SetCaption(" Super Stoner 420 ", 0);
         SDL_JoystickEventState(SDL_ENABLE);
         stick = SDL_JoystickOpen(0);
-        
         tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
-        
         if(!tex) {
             fprintf(stderr, "Error creating texture: %s", SDL_GetError());
             SDL_Quit();
             exit(-1);
         }
-        
         front = SDL_CreateRGBSurfaceFrom(NULL, 640, 480, 32, 640*4, 0x00FF0000, 0x0000FF00,0x000000FF,0xFF000000);
-        
-        //SDL_FillRect(front, 0, 0);
-        
         if(!front) {
             fprintf(stderr, "Error creating surface: %s", SDL_GetError());
             SDL_Quit();
             exit(-1);
         }
-        
-        
-        
         if(argc == 3 && strcmp(argv[1], "--run") == 0)
         {
-            //custom_level = 1;
             memset(custom_lvl, 0, sizeof(custom_lvl));
             strcpy(custom_lvl, argv[2]);
-            { // Test to see if file Exisits
+            { 
                 FILE *fptr = fopen(custom_lvl, "r");
                 if(!fptr)
                 {
-                    // nope dosent exisit
                     custom_level = 0;
                     fprintf(stderr, "Error level map %s not found!", custom_lvl);
                 } else {
@@ -323,13 +245,8 @@ void XBoxStartup() {
         }
         init();
         {
-            
             static SDL_Event e;
-            
             while(active == 1) {
-                
-                //SDL_FillRect(front, 0, 0);
-                
                 SDL_LockTexture(tex, 0, &front->pixels, &front->pitch);
                 render();
                 SDL_UnlockTexture(tex);
@@ -345,10 +262,8 @@ void XBoxStartup() {
                                     active = 0;
                                     break;
                                 case SDLK_LEFT:
-                                    //	scroll_left();
                                     break;
                                 case SDLK_RIGHT:
-                                    //	scroll_right();
                                     break;
                                 default:
                                     break;
@@ -365,23 +280,18 @@ void XBoxStartup() {
             }
         }
         rls();
-        SDL_FreeSurface(ico);
-        SDL_FreeSurface(front);
+	SDL_RemoveTimer(proc_game);
         SDL_JoystickClose(stick);
         SDL_Quit();
         return 0;
     }
-    
     void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent) {
-        
         void *buf , *buf2;
         int i,z,i2,z2;
         buf = lock(surf, surf->format->BitsPerPixel);
         buf2 = lock(front_surf, front_surf->format->BitsPerPixel);
-        
         i2 = rc2->x;
         z2 = rc2->y;
-        
         for(i = rc->w-1; i > 0; i--) {
             for(z = 0; z < rc->h; z++) {
                 SDL_Color col;
@@ -389,35 +299,25 @@ void XBoxStartup() {
                 if(color != transparent)
                     setpixel(buf2, i2, z2, SDL_MapRGB(front_surf->format, col.r, col.g, col.b), front_surf->format->BitsPerPixel, front_surf->pitch);
                 z2++;
-                
             }
             z2 = rc2->y;
             i2++;
         }
-        
-        // UNLOCK WAS THE F***in problem
         unlock(surf);
         unlock(front_surf);
     }
-    
     int SDL_Colide(SDL_Rect *rc, SDL_Rect *rc2) {
-        
         int i,z;
-        
         if(!(rc->x > 0 && rc->x+rc->w < 640 && rc->y > 0 && rc->y+rc->h < 480))
             return 0;
-        
         for( i = rc->x; i < rc->x+rc->w; i++) {
             for(z = rc->y; z < rc->y+rc->h; z++) {
                 if(i >= rc2->x && i <= rc2->x+rc2->w && z >= rc2->y && z <= rc2->y+rc2->h) return 1;
             }
-            
         }
         return 0;
     }
-    
     char *get_path(const char *p, const char *s) {
-        
         static char sbuf[256];
 #ifdef FOR_XBOX_XDK
         sprintf(sbuf, "%s%s", p, s);
@@ -426,7 +326,3 @@ void XBoxStartup() {
         sprintf(sbuf, "%s", s);
         return sbuf;
     }
-    
-    
-    
-    

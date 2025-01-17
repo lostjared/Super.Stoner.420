@@ -1,18 +1,14 @@
 #include "SDL_mxf.h"
 #include<stdio.h>
 #include<stdlib.h>
-
 int SDL_GetFX(struct SDL_Font *m,int x, int nw) {
 	float xp = (float)x * (float)m->mx / (float)nw;		
 	return (int)xp;
 }
-
 int SDL_GetFZ(struct SDL_Font *m, int y, int nh) {
 	float yp = (float)y * (float)m->my / (float)nh;
 	return (int)yp;
 }
-
-
 void InitFont(struct SDL_Font *m, int width, int height, int color) {
 	int l,p,i,z;
 	m->mx = width;
@@ -30,25 +26,12 @@ void InitFont(struct SDL_Font *m, int width, int height, int color) {
 	}
 	m->tcolor = 0x0;
 }
-
 void dump_font(struct SDL_Font *fnt) {
-/*	int i,z,p;
-	for(p = 0; p <= 127; p++) {
-		for(i = 0; i < fnt->mx; i++)
-			for(z = 0; z < fnt->my; z++)
-				printf("%d \n", fnt->letters[p].fnt_ptr[i][z]);
-	}*/
 }
-
-
 int littleToBig(int i)
 {
 	return((i&0xff)<<24)+((i&0xff00)<<8)+((i&0xff0000)>>8)+((i>>24)&0xff);
 }
-
-
-
-
 struct SDL_Font *SDL_InitFont(const char *src) {
 	FILE *fptr = fopen(src, "rb");
 	int q = 0,mx = 0,my = 0;
@@ -56,85 +39,57 @@ struct SDL_Font *SDL_InitFont(const char *src) {
 	int i,z,p;
 	if(!fptr) return 0;
 	int mode = 0;
-
-
 	fnt = (struct SDL_Font*)malloc(sizeof(struct SDL_Font));
-
 	if(SDL_BYTEORDER == SDL_BIG_ENDIAN)
 	{
 		mode = 1;
 	}
-
-
 	fread((char*)&q, sizeof(int), 1, fptr);
-
 	if(mode == 1)
 	q = littleToBig(q);
-
-
 	if(q == -100) {
 		fread((char*)&mx, sizeof(int), 1, fptr);
 		fread((char*)&my, sizeof(int), 1, fptr);
 		fread((char*)&fnt->tcolor, sizeof(int), 1, fptr);
-
-
 		if(mode == 1) {
-
 			mx = littleToBig(mx);
 			my = littleToBig(my);
 			fnt->tcolor = littleToBig(fnt->tcolor);
-
 		}
-
 		if(mx < 0 || mx < 0 || mx > 250 || my > 250) {
-			// invalid font file
 			fprintf(stderr, "Error invalid font file format!\n");
 			free(fnt);
 			return 0;
 		}
 		InitFont(fnt, mx, my, fnt->tcolor);
-
 		for(p = 0; p <= 127; p++)
 		for(i = 0; i < fnt->mx; i++) {
 			for(z = 0; z < fnt->my; z++) {
-
 				fread((char*)&fnt->letters[p].fnt_ptr[i][z], sizeof(int), 1, fptr);
-
 				if(mode == 1) fnt->letters[p].fnt_ptr[i][z] = littleToBig(fnt->letters[p].fnt_ptr[i][z]);
-
 			}
 		}
 	}
 	fclose(fptr);
 	return fnt;
 }
-
-
-
 void SDL_FreeFont(struct SDL_Font *m) {
 	int l,i;
 	for(l = 0; l <= 127; l++) {
 		if(m->letters[l].fnt_ptr) {
 			for(i = 0; i < m->mx; i++) 
 				free(m->letters[l].fnt_ptr[i]);
-
 			free(m->letters[l].fnt_ptr);
 		}
-		
 	}
-
 	free(m);
 }
-
 int SDL_PrintText(struct SDL_Surface *surf, struct SDL_Font *fnt, int x, int y, Uint32 color, const char *src) {
 	int prev_x = x;
 	int offset_x = prev_x, offset_y = y;
 	int width = 0, height = 0;
 	int i,z,p;
-
 	void *pbuf = lock(surf, surf->format->BitsPerPixel);
-
-
 	for(p = 0; p < (int)strlen(src);  p++) {
 		if(src[p] == '\n') {
 			offset_x = prev_x;
@@ -159,23 +114,16 @@ int SDL_PrintText(struct SDL_Surface *surf, struct SDL_Font *fnt, int x, int y, 
 		}
 		if(offset_y+height > surf->h)
 				return 1;
-					
 	}
 	unlock(surf);
-
 	return 0;
 }
-
 void SDL_PrintTextScaled(struct SDL_Surface *surf, struct SDL_Font *fnt, int x, int y, int w, int h, Uint32 color, const char *src) {
-
 		int prev_x = x;
 	int offset_x = prev_x, offset_y = y;
 	int width = 0, height = 0;
 	int i,z,p;
-
 	void *pbuf = lock(surf, surf->format->BitsPerPixel);
-
-
 	for(p = 0; p < (int)strlen(src);  p++) {
 		if(src[p] == '\n') {
 			offset_x = prev_x;
@@ -195,6 +143,4 @@ void SDL_PrintTextScaled(struct SDL_Surface *surf, struct SDL_Font *fnt, int x, 
 		offset_x += width + 2;
 	}
 	unlock(surf);
-
 }
-
