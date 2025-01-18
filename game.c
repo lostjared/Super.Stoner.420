@@ -30,7 +30,7 @@ void reload_level() {
     if(cur_level >= 8)
         cur_level = 0;
     if(custom_level == 0)
-        sprintf(sbuf,"%slevel/level%d.sml", level_str[cur_levels], ++cur_level);
+        snprintf(sbuf,255,"%slevel/level%d.sml", level_str[cur_levels], ++cur_level);
     else
         strcpy(sbuf, custom_lvl);
     if(level != 0) release_level(level);
@@ -68,21 +68,22 @@ static void init() {
     logo = SDL_LoadBMP(get_path("D:\\", "img/logo.bmp"));
     for(i = 0; img_str[i] != 0; i++) {
         static char sbuf[256];
-        sprintf(sbuf, "img/%s", img_str[i]);
+        snprintf(sbuf,255, "img/%s", img_str[i]);
         gfx[i] = SDL_LoadBMP(get_path("D:\\", sbuf));
         if(!gfx[i])
             fprintf(stderr, "Error couldnt load graphic %s\n", sbuf);
     }
     for(i = 0; hstr[i] != 0; i++) {
         static char sbuf[256];
-        sprintf(sbuf, "img/hero/%s", hstr[i]);
+        snprintf(sbuf,255, "img/hero/%s", hstr[i]);
+        snprintf(sbuf,255, "img/hero/%s", hstr[i]);
         hgfx[i] = SDL_LoadBMP(get_path("D:\\", sbuf));
         if(!hgfx[i])
             fprintf(stderr, "Error couldnt load graphic %s\n", sbuf);
     }
     for(i = 0; i < COLLECT_NUM; i++) {
         static char sbuf[256];
-        sprintf(sbuf, "img/col%d.bmp", i+1);
+        snprintf(sbuf,255, "img/col%d.bmp", i+1);
         collect[i] = SDL_LoadBMP(get_path("D:\\", sbuf));
         if(!collect[i])
             fprintf(stderr, "Error couldnt load graphic %s\n", sbuf);
@@ -93,7 +94,7 @@ static void init() {
             for( z = 0; z < 10; z++ ) {
                 static char sbuf[256];
                 memset(sbuf, 0, sizeof(sbuf));
-                sprintf(sbuf,"%sevil%d.bmp", ev[i], z+1);
+                snprintf(sbuf,255,"%sevil%d.bmp", ev[i], z+1);
                 evil_gfx[i].gfx[z] = SDL_LoadBMP(get_path("D:\\", sbuf));
                 if(!evil_gfx[i].gfx[z])
                     fprintf(stderr, "Couldnt load %s ", sbuf);
@@ -318,11 +319,11 @@ void XBoxStartup() {
         return 0;
     }
     char *get_path(const char *p, const char *s) {
-        static char sbuf[256];
+        static char sbuf[4096];
 #ifdef FOR_XBOX_XDK
-        sprintf(sbuf, "%s%s", p, s);
+        snprintf(sbuf, 4095, "%s%s", p, s);
         return sbuf;
 #endif
-        sprintf(sbuf, "%s", s);
+        snprintf(sbuf,4095, "%s", s);
         return sbuf;
     }

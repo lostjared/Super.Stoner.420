@@ -97,7 +97,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 		{
 			static char buf[256];
 			memset(buf, 0, sizeof(buf));
-			sprintf(buf, "Score: %d Lives: %d", score, lives);
+			snprintf(buf,255, "Score: %d Lives: %d", score, lives);
 			SDL_PrintText(surf,cfont,350, 25, SDL_MapRGB(surf->format, rand()%255, rand()%255, 255), buf);
 		}
 		startby = 75;

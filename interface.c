@@ -153,10 +153,11 @@ void render_enter_level() {
 		SDL_BlitSurface( hgfx[0] , 0, front, &rc2 );
 		{
 			static char sbuf[1024], lifebuf[1024];
-			sprintf(sbuf, "Now Entering Level %s", level->level_name);
-			sprintf(lifebuf, "Lives: %d", lives);
+			snprintf(sbuf,1023, "Now Entering Level %s", level->level_name);
+			snprintf(lifebuf,1023, "Lives: %d", lives);
 			SDL_PrintText(front, font, 150, 100, SDL_MapRGB(front->format, 255, 255, rand()%255), sbuf);
 			SDL_PrintText(front, cfont, 150, 175, SDL_MapRGB(front->format, 255, 255, 255), lifebuf);
+            SDL_PrintText(front, font, 150, 200, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "Press Start to Play Level");
 			SDL_PrintText(front, font, 150, 200, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "Press Start to Play Level");
 			{
 				SDL_Rect rc4 = { 0, 480-lsd->h, lsd->w, lsd->h };
