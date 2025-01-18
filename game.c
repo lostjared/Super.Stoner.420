@@ -76,7 +76,6 @@ static void init() {
     for(i = 0; hstr[i] != 0; i++) {
         static char sbuf[256];
         snprintf(sbuf,255, "img/hero/%s", hstr[i]);
-        snprintf(sbuf,255, "img/hero/%s", hstr[i]);
         hgfx[i] = SDL_LoadBMP(get_path("D:\\", sbuf));
         if(!hgfx[i])
             fprintf(stderr, "Error couldnt load graphic %s\n", sbuf);

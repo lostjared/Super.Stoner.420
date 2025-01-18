@@ -6,7 +6,7 @@ set(CMAKE_C_COMPILER "g++")
 find_package(SDL2 REQUIRED)
 find_package(SDL2_mixer REQUIRED)
 
-include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_MIXER_INCLUDE_DIRS} ${CMAKE_PREFIX_PATH}/include/SDL ${CMAKE_INSTALL_PREFIX}/SDL2)
+include_directories(${SDL2_INCLUDE_DIRS} ${SDL2_MIXER_INCLUDE_DIRS} ${CMAKE_PREFIX_PATH}/include/SDL2 ${CMAKE_INSTALL_PREFIX}/include/SDL2)
 file(GLOB C_FILES "${CMAKE_SOURCE_DIR}/*.c")
 add_executable(SuperStoner420 ${C_FILES})
 target_link_libraries(SuperStoner420 ${SDL2_LIBRARIES} SDL2_mixer::SDL2_mixer)
