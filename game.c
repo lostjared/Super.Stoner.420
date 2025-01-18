@@ -199,6 +199,11 @@ void XBoxStartup() {
         current.h = 480;
         SDL_ShowCursor(SDL_FALSE);
         ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
+	if(ico == NULL) {
+		fprintf(stderr, "Error loading icon, wrong path place this program in the directory with the resources.\n");
+		SDL_Quit();
+		return EXIT_FAILURE;
+	}
         window = SDL_CreateWindow("Super Stoner 420", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
         if(!window) {
             fprintf(stderr, "Error creating window: %s\n", SDL_GetError());
