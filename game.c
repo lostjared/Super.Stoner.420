@@ -179,8 +179,14 @@ void XBoxStartup() {
 #endif
         Uint32 mode = 0;
         SDL_Surface *ico = 0;
+        int full = 0;
         int WIDTH=960, HEIGHT=720;
         if(argc == 4 && strcmp(argv[1], "--size") == 0) {
+            WIDTH = atoi(argv[2]);
+            HEIGHT = atoi(argv[3]);
+        }
+        if(argc == 4  && strcmp(argv[1],"--full") == 0) {
+            full = 1;
             WIDTH = atoi(argv[2]);
             HEIGHT = atoi(argv[3]);
         }
@@ -195,6 +201,8 @@ void XBoxStartup() {
             SDL_Quit();
             exit(-1);
         }
+
+
         current.w = 640;
         current.h = 480;
         SDL_ShowCursor(SDL_FALSE);
@@ -218,6 +226,11 @@ void XBoxStartup() {
             SDL_Quit();
             exit(-1);
         }
+
+        if(full == 1) {
+            SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+        }
+
         SDL_JoystickEventState(SDL_ENABLE);
         stick = SDL_JoystickOpen(0);
         tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
@@ -232,6 +245,10 @@ void XBoxStartup() {
             SDL_Quit();
             exit(-1);
         }
+
+    
+
+
         if(argc == 3 && strcmp(argv[1], "--run") == 0)
         {
             memset(custom_lvl, 0, sizeof(custom_lvl));
