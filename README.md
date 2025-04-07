@@ -1,13 +1,23 @@
 # Super Stoner 420
 
-
-![ScreenShot](https://github.com/lostjared/Super.Stoner.420/blob/master/ss420_1.png?raw=true "screenshot")
 ![Screenshot 2025-04-06 185524](https://github.com/user-attachments/assets/883ddb3c-b8d6-4d72-af30-4cb99372e180)
 ![Screenshot 2025-04-06 185110](https://github.com/user-attachments/assets/483fbeb9-bf06-450d-97ae-74d678987f1c)
 
 
  * Updated
+Play a Web Assembly port of this game in your browser: https://lostsidedead.biz/super/superstoner420.html
 
+Controls
+
+Left, Right Arrows move
+
+A - Jump 
+
+S - Fire your gun
+
+Goals:
+
+Pass all the levels if you can!
 
 Resolved a longstanding issue and updated the feature allowing users to adjust the window size by executing:
 
