@@ -312,7 +312,6 @@ void XBoxStartup() {
             }
         }
         rls();
-	SDL_RemoveTimer(proc_game);
         SDL_JoystickClose(stick);
         SDL_Quit();
         return 0;
