@@ -126,16 +126,23 @@ static void rls() {
     cleanup_all_timers();
 
     Uint8 i = 0, z = 0;
+    
     for( i = 0; img_str[i] != 0; i++)
         SDL_FreeSurface(gfx[i]);
-    for( i = 0; hstr[i] != 0; i++)
+    
+        for( i = 0; hstr[i] != 0; i++)
         SDL_FreeSurface(hgfx[i]);
-    for ( i = 0; ev[i] != 0; i++)
+    
+        for ( i = 0; ev[i] != 0; i++)
         for(z = 0; z < 10; z++)
             SDL_FreeSurface(evil_gfx[i].gfx[z]);
-    for( i = 0; i < COLLECT_NUM; i++)
+    
+    for(i = 0; i < COLLECT_NUM; i++)
         SDL_FreeSurface(collect[i]);
+
+
     SDL_DestroyRenderer(renderer);
+    SDL_FreeSurface(front);
     SDL_DestroyTexture(tex);
     SDL_DestroyWindow(window);
     SDL_FreeSurface(bg);
@@ -222,8 +229,8 @@ void XBoxStartup() {
             SDL_Quit();
             exit(-1);
         }
-	SDL_SetWindowIcon(window, ico);
-	SDL_FreeSurface(ico);
+	    SDL_SetWindowIcon(window, ico);
+	    SDL_FreeSurface(ico);
         renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
         if(!renderer) {
             fprintf(stderr, "Error creating Renderer: %s\n", SDL_GetError());
@@ -250,7 +257,6 @@ void XBoxStartup() {
             exit(-1);
         }
 
-    
 
 
         if(argc == 3 && strcmp(argv[1], "--run") == 0)
