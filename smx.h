@@ -2,6 +2,8 @@
 #define __SMX__H_
 #include"SDL_mxf.h"
 #include<stdio.h>
+#include<stdlib.h>
+#include<string.h>
 #ifndef __INCLUDED_PLATFORM_INFO__
 #define __INCLUDED_PLATFORM_INFO__
 #include "platform.h"

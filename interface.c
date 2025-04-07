@@ -9,8 +9,10 @@ SDL_TimerID check_start = 0;
 extern SDL_TimerID check_in;
 SDL_TimerID proc_game;
 
+
+
 void cleanup_all_timers() {
-    // Clean up all active timers
+    
     if(check_start != 0) {
         SDL_RemoveTimer(check_start);
         check_start = 0;

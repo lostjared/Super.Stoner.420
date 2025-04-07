@@ -117,10 +117,13 @@ static void init() {
 SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *tex;
+
+extern void cleanup_all_timers();
+
+
 static void rls() {
 
-     if(check_in != 0)
-	SDL_RemoveTimer(check_in);
+    cleanup_all_timers();
 
     Uint8 i = 0, z = 0;
     for( i = 0; img_str[i] != 0; i++)
@@ -142,13 +145,14 @@ static void rls() {
     SDL_FreeFont(cfont);
     SDL_FreeFont(font);
     release_level(level);
-#ifdef HAX_MIXER
+#ifdef HAS_MIXER
     Mix_FreeChunk(fire_snd);
     Mix_FreeChunk(collect_snd);
     Mix_FreeChunk(intro_snd);
     Mix_FreeChunk(kill_snd);
     Mix_HaltMusic();
     Mix_CloseAudio();
+    Mix_Quit();
 #endif
 }
 static void render() {
