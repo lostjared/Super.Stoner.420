@@ -6,6 +6,24 @@ int shown_logo = 0;
 int cl_pos = 0, cl2_pos = 0;
 int menu_level = 0;
 SDL_TimerID check_start = 0;
+extern SDL_TimerID check_in;
+SDL_TimerID proc_game;
+
+void cleanup_all_timers() {
+    // Clean up all active timers
+    if(check_start != 0) {
+        SDL_RemoveTimer(check_start);
+        check_start = 0;
+    }
+    if(check_in != 0) {
+        SDL_RemoveTimer(check_in);
+        check_in = 0;
+    }
+    if(proc_game != 0) {
+        SDL_RemoveTimer(proc_game);
+        proc_game = 0;
+    }
+}
 
 Uint32 intro_wait(Uint32 i, void *v) {
 	shown_logo = 1;
@@ -16,7 +34,6 @@ Uint32 intro_wait(Uint32 i, void *v) {
 	return 0;
 }
 
-extern SDL_TimerID check_in;
 
 Uint32 check_start_in(Uint32 i, void *v) {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
@@ -71,8 +88,8 @@ Uint32 check_start_in(Uint32 i, void *v) {
 					cur_levels = cl2_pos;
 					cur_level = 0;
 					menu_level = 0;
+					cleanup_all_timers(); 
 					reload_level();
-					check_in = 0;
 					return 0;
 			}
 			break;
@@ -119,8 +136,6 @@ void render_start() {
 	}
 }
 
-SDL_TimerID proc_game;
-
 void check_enter_in() {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
 #ifdef FOR_PSP
@@ -129,17 +144,23 @@ void check_enter_in() {
 	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1))
 #endif
 	{
-        static int lazy = 1;
+        
+        cleanup_all_timers();
         cur_scr = ID_GAME;
-        if(lazy == 1) {
-            proc_game = SDL_AddTimer(75,proccess_game, 0);
-            lazy = 0;
-        }
+        
+        
+#if defined(FOR_PSP) || defined(FOR_XBOX_OPENXDK)
+        
+        proc_game = SDL_AddTimer(
 #ifdef FOR_PSP
-	SDL_SetTimer(25, proccess_game);
+            25,
+#else
+            125,
 #endif
-#ifdef FOR_XBOX_OPENXDK
-	SDL_SetTimer(125, proccess_game);
+            proccess_game, 0);
+#else
+        
+        proc_game = SDL_AddTimer(75, proccess_game, 0);
 #endif
 	}
 }
