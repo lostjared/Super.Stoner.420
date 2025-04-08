@@ -1,3 +1,6 @@
+#ifdef __EMSCRIPTEN__
+#include<emscripten/emscripten.h>
+#endif
 #include "level.h"
 #include "smx.h"
 #ifdef HAS_MIXER
@@ -29,8 +32,14 @@ void reload_level() {
     char sbuf[256];
     if(cur_level >= 8)
         cur_level = 0;
+#ifdef __EMSCRIPTEN__
     if(custom_level == 0)
-        snprintf(sbuf,255,"%slevel/level%d.sml", level_str[cur_levels], ++cur_level);
+        snprintf(sbuf,255,"/assets/%slevel/level%d.sml", level_str[cur_levels], ++cur_level);
+#else
+    if(custom_level == 0)
+    snprintf(sbuf,255,"%slevel/level%d.sml", level_str[cur_levels], ++cur_level);
+
+#endif
     else
         strcpy(sbuf, custom_lvl);
     if(level != 0) release_level(level);
@@ -190,6 +199,43 @@ void handleInputEvent(SDL_Event *e) {
     }
 }
 
+static SDL_Event e;
+int WIDTH=1440, HEIGHT=1080;
+
+void eventPump() { 
+    SDL_LockTexture(tex, 0, &front->pixels, &front->pitch);
+    render();
+    SDL_UnlockTexture(tex);
+    if(SDL_PollEvent(&e)) {
+        handleInputEvent(&e);
+        switch(e.type) {
+            case SDL_QUIT:
+                active = 0;
+                break;
+            case SDL_KEYDOWN:
+            {
+                switch(e.key.keysym.sym) {
+                    case SDLK_ESCAPE:
+                        active = 0;
+                        break;
+                    case SDLK_LEFT:
+                        break;
+                    case SDLK_RIGHT:
+                        break;
+                    default:
+                        break;
+                }
+            }
+                break;
+        }
+    }
+    SDL_Rect dst = { 0, 0, WIDTH, HEIGHT };
+    SDL_RenderClear(renderer);
+    SDL_RenderCopy(renderer, tex, 0, &dst);
+    SDL_RenderPresent(renderer);
+    SDL_Delay(10);
+}
+
 #ifdef FOR_XBOX_OPENXDK
 void XBoxStartup() {
     char **argv = 0;
@@ -200,7 +246,7 @@ void XBoxStartup() {
         Uint32 mode = 0;
         SDL_Surface *ico = 0;
         int full = 0;
-        int WIDTH=960, HEIGHT=720;
+
         if(argc == 4 && strcmp(argv[1], "--size") == 0) {
             WIDTH = atoi(argv[2]);
             HEIGHT = atoi(argv[3]);
@@ -286,40 +332,14 @@ void XBoxStartup() {
         }
         init();
         {
-            static SDL_Event e;
+#ifndef __EMSCRIPTEN__
             while(active == 1) {
-                SDL_LockTexture(tex, 0, &front->pixels, &front->pitch);
-                render();
-                SDL_UnlockTexture(tex);
-                if(SDL_PollEvent(&e)) {
-                    handleInputEvent(&e);
-                    switch(e.type) {
-                        case SDL_QUIT:
-                            active = 0;
-                            break;
-                        case SDL_KEYDOWN:
-                        {
-                            switch(e.key.keysym.sym) {
-                                case SDLK_ESCAPE:
-                                    active = 0;
-                                    break;
-                                case SDLK_LEFT:
-                                    break;
-                                case SDLK_RIGHT:
-                                    break;
-                                default:
-                                    break;
-                            }
-                        }
-                            break;
-                    }
-                }
-                SDL_Rect dst = { 0, 0, WIDTH, HEIGHT };
-                SDL_RenderClear(renderer);
-                SDL_RenderCopy(renderer, tex, 0, &dst);
-                SDL_RenderPresent(renderer);
-                SDL_Delay(10);
+                eventPump();
             }
+#else
+            emscripten_set_main_loop(eventPump, 0, 1);
+#endif
+
         }
         rls();
         SDL_JoystickClose(stick);
@@ -362,6 +382,10 @@ void XBoxStartup() {
         static char sbuf[4096];
 #ifdef FOR_XBOX_XDK
         snprintf(sbuf, 4095, "%s%s", p, s);
+        return sbuf;
+#endif
+#ifdef __EMSCRIPTEN__
+        snprintf(sbuf, 4095, "/assets/%s", s);
         return sbuf;
 #endif
         snprintf(sbuf,4095, "%s", s);

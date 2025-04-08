@@ -38,7 +38,6 @@ Uint32 intro_wait(Uint32 i, void *v) {
 
 
 Uint32 check_start_in(Uint32 i, void *v) {
-	const Uint8 *keys = SDL_GetKeyboardState(0);
 	int b = SDL_JoystickGetHat(stick, 0);
 	int axis = SDL_JoystickGetAxis(stick, 0);
         int axis2 = SDL_JoystickGetAxis(stick, 1);
@@ -122,7 +121,7 @@ void handleInput(SDL_Event  *e) {
 					if(menu_level == 1 && cl2_pos < 1)
 						cl2_pos++;
 					break;
-				case SDLK_RETURN:
+				case SDLK_SPACE:
 					switch(menu_level) {
 						case 0:
 							switch(cl_pos) {
@@ -145,7 +144,8 @@ void handleInput(SDL_Event  *e) {
 								cur_level = 0;
 								menu_level = 0;
 								cleanup_all_timers(); 
-								reload_level();
+							    reload_level();
+
 								return ;
 							}
 							break;
