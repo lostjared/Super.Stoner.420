@@ -181,6 +181,15 @@ static void render() {
             break;
     }
 }
+
+extern void handleInput(SDL_Event *e);
+
+void handleInputEvent(SDL_Event *e) {
+    if(cur_scr == ID_START) {
+        handleInput(e);
+    }
+}
+
 #ifdef FOR_XBOX_OPENXDK
 void XBoxStartup() {
     char **argv = 0;
@@ -283,6 +292,7 @@ void XBoxStartup() {
                 render();
                 SDL_UnlockTexture(tex);
                 if(SDL_PollEvent(&e)) {
+                    handleInputEvent(&e);
                     switch(e.type) {
                         case SDL_QUIT:
                             active = 0;

@@ -42,11 +42,11 @@ Uint32 check_start_in(Uint32 i, void *v) {
 	int b = SDL_JoystickGetHat(stick, 0);
 	int axis = SDL_JoystickGetAxis(stick, 0);
         int axis2 = SDL_JoystickGetAxis(stick, 1);
-	if(keys[SDL_SCANCODE_UP]
+	if(
 #ifdef FOR_PSP
-	|| SDL_JoystickGetButton(stick, 8)
+	 SDL_JoystickGetButton(stick, 8)
 #else
-	|| b & SDL_HAT_UP || axis2 < -1000
+	 b & SDL_HAT_UP || axis2 < -1000
 #endif
       	) {
 		if(menu_level == 0 && cl_pos > 0)
@@ -54,11 +54,11 @@ Uint32 check_start_in(Uint32 i, void *v) {
 		if(menu_level == 1 && cl2_pos > 0)
 			cl2_pos--;
 	}
-	else if(keys[SDL_SCANCODE_DOWN]
+	else if(
 #ifdef FOR_PSP
-	|| SDL_JoystickGetButton(stick, 6)
+	 SDL_JoystickGetButton(stick, 6)
 #else
-	||	b & SDL_HAT_DOWN || axis2 > 1000
+	b & SDL_HAT_DOWN || axis2 > 1000
 #endif
             )
     	 {
@@ -67,7 +67,7 @@ Uint32 check_start_in(Uint32 i, void *v) {
 		if(menu_level == 1 && cl2_pos < 1)
 			cl2_pos++;
 	}
-	else if(keys[SDL_SCANCODE_SPACE] || SDL_JoystickGetButton(stick, 2))
+	else if(SDL_JoystickGetButton(stick, 2))
 	{
 		switch(menu_level) {
 			case 0:
@@ -99,7 +99,66 @@ Uint32 check_start_in(Uint32 i, void *v) {
 	}
 	return i;
 }
+
+void handleInput(SDL_Event  *e) {
+	switch(e->type) {
+		case SDL_KEYDOWN:
+			switch(e->key.keysym.sym) {
+				case SDLK_ESCAPE:
+					if(menu_level == 0)
+						menu_level = 1;
+					else
+						menu_level = 0;
+					break;
+				case SDLK_UP:
+					if(menu_level == 0 && cl_pos > 0)
+						cl_pos--;
+					if(menu_level == 1 && cl2_pos > 0)
+						cl2_pos--;
+					break;
+				case SDLK_DOWN:
+					if(menu_level == 0 && cl_pos < 2)
+						cl_pos++;
+					if(menu_level == 1 && cl2_pos < 1)
+						cl2_pos++;
+					break;
+				case SDLK_RETURN:
+					switch(menu_level) {
+						case 0:
+							switch(cl_pos) {
+								case 0:
+									menu_level = 1;
+									cl2_pos = 0;
+									break;
+								case 1:
+									cur_scr = ID_CREDITS;
+									break;
+								case 2:
+									{		active = 0;
+									}
+									break;
+							}
+							break;
+						case 1:
+							{
+								cur_levels = cl2_pos;
+								cur_level = 0;
+								menu_level = 0;
+								cleanup_all_timers(); 
+								reload_level();
+								return ;
+							}
+							break;
+					}
+					break;
+			}
+			break;
+	}
+}
+
 void render_start() {
+
+
 	SDL_BlitSurface(logo, 0, front, 0);
 	if(shown_logo == 1) {
 		SDL_Rect rc = { 50, 50, front->w-100, front->h-100 };
