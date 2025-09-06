@@ -32,7 +32,7 @@ typedef struct _Particle {
 	int x,y,type;
 	int vpos,dir;
 } Particle;
-#define MAX_PARTICLE 10
+#define MAX_PARTICLE 100
 typedef struct _Emiter {
 	Particle p[MAX_PARTICLE];
 } Emiter;
