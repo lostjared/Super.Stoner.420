@@ -355,87 +355,114 @@ static void hero_die() {
 	jump_ok = 1;
 }
 void proc_particles(Emiter *e) {
-	unsigned int i = 0;
-	for( i = 0; i < MAX_PARTICLE; i++) {
-		if(e->p[i].type != 0) {
-			if(e->p[i].vpos >= MAX_TILE-24 || e->p[i].vpos <= 24 ||  level->tiles[e->p[i].vpos].solid)
-			{
-				e->p[i].type = 0;
-				continue;
-			}
-			if(e->p[i].dir == 0) {
-				e->p[i].vpos -= 24;
-			}
-			else e->p[i].vpos += 24;
-		}
-	}
-	for( i = 0; i < 50; i++ ) {
-		Uint8 check[5];
-		if(evil[i].type != -1) {
-			if(!level->tiles[evil[i].vpos+4].solid)
-				evil[i].vpos++;
-		if(evil[i].die == 0) {
-			evil[i].cur_ani ++;
-			if(evil[i].cur_ani >= 5)
-			evil[i].cur_ani = 0;
-		} else {
-			evil[i].cur_ani++;
-			if(evil[i].cur_ani > 7) {
-				evil[i].type = -1;
+    unsigned int i = 0;
+    static int lost_focus[50] = {0};
+    
+    for( i = 0; i < MAX_PARTICLE; i++) {
+        if(e->p[i].type != 0) {
+            if(e->p[i].vpos >= MAX_TILE-24 || e->p[i].vpos <= 24 ||  level->tiles[e->p[i].vpos].solid)
+            {
+                e->p[i].type = 0;
+                continue;
+            }
+            if(e->p[i].dir == 0) {
+                e->p[i].vpos -= 24;
+            }
+            else e->p[i].vpos += 24;
+        }
+    }
+    for( i = 0; i < 50; i++ ) {
+        Uint8 check[5];
+        if(evil[i].type != -1) {
+            if(!level->tiles[evil[i].vpos+4].solid)
+                evil[i].vpos++;
+        
+        int distance_to_player = abs((int)evil[i].vpos - (int)(hero.hpos + offset));
+        int is_aggressive = (distance_to_player < 192) && !lost_focus[i]; 
+        
+        if(is_aggressive) {
+            if(evil[i].vpos < hero.hpos + offset) {
+                evil[i].dir = 1; 
+            } else {
+                evil[i].dir = 0; 
+            }
+        }
+        
+        if(evil[i].die == 0) {
+            evil[i].cur_ani ++;
+            if(evil[i].cur_ani >= 5)
+            evil[i].cur_ani = 0;
+        } else {
+            evil[i].cur_ani++;
+            if(evil[i].cur_ani > 7) {
+                evil[i].type = -1;
+                lost_focus[i] = 0; 
 #ifdef HAS_MIXER
-				if(kill_snd != 0)
-					Mix_PlayChannel(-1, kill_snd, 0);
+                if(kill_snd != 0)
+                    Mix_PlayChannel(-1, kill_snd, 0);
 #endif
-				break;
-			}
-		}
-		if(evil[i].dir == 0) {
-			check[0] = level->tiles[evil[i].vpos-24].solid;
-			check[1] = level->tiles[evil[i].vpos+1-24].solid;
-			check[2] = level->tiles[evil[i].vpos+2-24].solid;
-			check[3] = level->tiles[evil[i].vpos+3-24].solid;
-			check[4] = level->tiles[evil[i].vpos-24-24].solid;
-			if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) evil[i].vpos -= 24; else evil[i].dir = 1;
-		}
-		else if(evil[i].dir == 1) {
-			check[0] = level->tiles[evil[i].vpos + 27].solid;
-			check[1] = level->tiles[evil[i].vpos + 27 + 24].solid;
-			check[2] = level->tiles[evil[i].vpos + 27 + 23].solid;
-			check[3] = level->tiles[evil[i].vpos + 27 + 22].solid;
-			check[4] = level->tiles[evil[i].vpos + 27 + 21].solid;
-			if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) 
-				evil[i].vpos += 24;
-			else
-				evil[i].dir = 0;
-		}
-		if(evil[i].type != -1 && hero.x > 0 && hero.y > 0 && evil[i].x > 0 && evil[i].y > 0)
-		{
-			SDL_Rect rcY = { evil[i].x, evil[i].y, evil[i].egfx->gfx[evil[i].cur_ani]->w, evil[i].egfx->gfx[evil[i].cur_ani]->h };
-			SDL_Rect rcX = { hero.x, hero.y, hgfx[hero.cur_ani]->w, hgfx[hero.cur_ani]->h };
-			if(SDL_Colide(&rcX, &rcY)) {
-				hero_die();
-				return;
-			}
-		}
-		{
-			Uint8 p = 0;
-			for( ; p < MAX_PARTICLE; p++ ) {
-				if(e->p[p].type != 0) {
-					if(e->p[p].x > 0 && e->p[p].y > 0 && e->p[p].x < 640 && e->p[p].y < 480 && evil[i].x > 0 && evil[i].y > 0 && evil[i].x < 640 && evil[i].y < 480) {
-					SDL_Rect rcX = { e->p[p].x, e->p[p].y, particles[0]->w, particles[0]->h };
-					SDL_Rect rcY = { evil[i].x, evil[i].y, evil[i].egfx->gfx[evil[i].cur_ani]->w, evil[i].egfx->gfx[evil[i].cur_ani]->h };
-					if(SDL_Colide(&rcX, &rcY)) {
-						e->p[p].type = 0;
-						evil[i].die = 1;
-						evil[i].cur_ani = 5;
-						score++;
-					}
-					}
-				}
-			}
-		}
-		}
-	}
+                break;
+            }
+        }
+        
+        int move_speed = is_aggressive ? 48 : 24; 
+        
+        if(evil[i].dir == 0) {
+            check[0] = level->tiles[evil[i].vpos-move_speed].solid;
+            check[1] = level->tiles[evil[i].vpos+1-move_speed].solid;
+            check[2] = level->tiles[evil[i].vpos+2-move_speed].solid;
+            check[3] = level->tiles[evil[i].vpos+3-move_speed].solid;
+            check[4] = level->tiles[evil[i].vpos-move_speed-24].solid;
+            if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) 
+                evil[i].vpos -= move_speed; 
+            else {
+                evil[i].dir = 1; 
+                lost_focus[i] = 1; 
+            }
+        }
+        else if(evil[i].dir == 1) {
+            int check_pos = move_speed + 3;
+            check[0] = level->tiles[evil[i].vpos + check_pos].solid;
+            check[1] = level->tiles[evil[i].vpos + check_pos + 24].solid;
+            check[2] = level->tiles[evil[i].vpos + check_pos + 23].solid;
+            check[3] = level->tiles[evil[i].vpos + check_pos + 22].solid;
+            check[4] = level->tiles[evil[i].vpos + check_pos + 21].solid;
+            if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) 
+                evil[i].vpos += move_speed;
+            else {
+                evil[i].dir = 0; 
+                lost_focus[i] = 0; 
+            }
+        }
+        
+        if(evil[i].type != -1 && hero.x > 0 && hero.y > 0 && evil[i].x > 0 && evil[i].y > 0)
+        {
+            SDL_Rect rcY = { evil[i].x, evil[i].y, evil[i].egfx->gfx[evil[i].cur_ani]->w, evil[i].egfx->gfx[evil[i].cur_ani]->h };
+            SDL_Rect rcX = { hero.x, hero.y, hgfx[hero.cur_ani]->w, hgfx[hero.cur_ani]->h };
+            if(SDL_Colide(&rcX, &rcY)) {
+                hero_die();
+                return;
+            }
+        }
+        {
+            Uint8 p = 0;
+            for( ; p < MAX_PARTICLE; p++ ) {
+                if(e->p[p].type != 0) {
+                    if(e->p[p].x > 0 && e->p[p].y > 0 && e->p[p].x < 640 && e->p[p].y < 480 && evil[i].x > 0 && evil[i].y > 0 && evil[i].x < 640 && evil[i].y < 480) {
+                    SDL_Rect rcX = { e->p[p].x, e->p[p].y, particles[0]->w, particles[0]->h };
+                    SDL_Rect rcY = { evil[i].x, evil[i].y, evil[i].egfx->gfx[evil[i].cur_ani]->w, evil[i].egfx->gfx[evil[i].cur_ani]->h };
+                    if(SDL_Colide(&rcX, &rcY)) {
+                        e->p[p].type = 0;
+                        evil[i].die = 1;
+                        evil[i].cur_ani = 5;
+                        score++;
+                    }
+                    }
+                }
+            }
+        }
+        }
+    }
 }
 static int get_off_particle(Emiter *e) {
 	unsigned int i = 0;
