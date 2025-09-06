@@ -417,16 +417,8 @@ void proc_particles(Emiter *e) {
         int vertical_distance = abs(enemy_tile_y - hero_tile_y);
         
         int is_aggressive = (horizontal_distance < 96) &&          
-                           (vertical_distance <= 2) &&            
+                           (vertical_distance < 3) &&  
                            !lost_focus[i]; 
-        
-        if(is_aggressive) {
-            if(evil[i].vpos < hero.hpos + offset) {
-                evil[i].dir = 1; 
-            } else {
-                evil[i].dir = 0; 
-            }
-        }
         
         if(evil[i].die == 0) {
             evil[i].cur_ani ++;
@@ -478,7 +470,8 @@ void proc_particles(Emiter *e) {
         if(evil[i].type != -1 && hero.x > 0 && hero.y > 0 && evil[i].x > 0 && evil[i].y > 0)
         {
             int vertical_pixel_distance = abs(hero.y - evil[i].y);    
-            if(vertical_pixel_distance < 20) {
+            if(vertical_pixel_distance < 32) 
+            {
                 SDL_Rect rcY = { evil[i].x + 2, evil[i].y + 2, evil[i].egfx->gfx[evil[i].cur_ani]->w - 4, evil[i].egfx->gfx[evil[i].cur_ani]->h - 4 };
                 SDL_Rect rcX = { hero.x + 2, hero.y + 2, hgfx[hero.cur_ani]->w - 4, hgfx[hero.cur_ani]->h - 4 };
                 if(SDL_Colide(&rcX, &rcY)) {
