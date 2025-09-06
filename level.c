@@ -74,7 +74,6 @@ void render_map(SDL_Surface *surf, Level *lvl) {
     bx = 75; by = startby;   
     
 #ifdef FOR_PSP
-    // Check for joystick if not available
     if(stick == NULL) {
         try_init_joystick();
     }
@@ -406,8 +405,20 @@ void proc_particles(Emiter *e) {
             if(!level->tiles[evil[i].vpos+4].solid)
                 evil[i].vpos++;
         
-        int distance_to_player = abs((int)evil[i].vpos - (int)(hero.hpos + offset));
-        int is_aggressive = (distance_to_player < 192) && !lost_focus[i]; 
+        int horizontal_distance = abs((int)evil[i].vpos - (int)(hero.hpos + offset));
+        
+        int level_width = 24; 
+        
+        int enemy_tile_x = evil[i].vpos % level_width;
+        int enemy_tile_y = evil[i].vpos / level_width;
+        int hero_tile_x = (hero.hpos + offset) % level_width;
+        int hero_tile_y = (hero.hpos + offset) / level_width;
+        
+        int vertical_distance = abs(enemy_tile_y - hero_tile_y);
+        
+        int is_aggressive = (horizontal_distance < 96) &&          
+                           (vertical_distance <= 2) &&            
+                           !lost_focus[i]; 
         
         if(is_aggressive) {
             if(evil[i].vpos < hero.hpos + offset) {
@@ -466,13 +477,17 @@ void proc_particles(Emiter *e) {
         
         if(evil[i].type != -1 && hero.x > 0 && hero.y > 0 && evil[i].x > 0 && evil[i].y > 0)
         {
-            SDL_Rect rcY = { evil[i].x, evil[i].y, evil[i].egfx->gfx[evil[i].cur_ani]->w, evil[i].egfx->gfx[evil[i].cur_ani]->h };
-            SDL_Rect rcX = { hero.x, hero.y, hgfx[hero.cur_ani]->w, hgfx[hero.cur_ani]->h };
-            if(SDL_Colide(&rcX, &rcY)) {
-                hero_die();
-                return;
+            int vertical_pixel_distance = abs(hero.y - evil[i].y);    
+            if(vertical_pixel_distance < 20) {
+                SDL_Rect rcY = { evil[i].x + 2, evil[i].y + 2, evil[i].egfx->gfx[evil[i].cur_ani]->w - 4, evil[i].egfx->gfx[evil[i].cur_ani]->h - 4 };
+                SDL_Rect rcX = { hero.x + 2, hero.y + 2, hgfx[hero.cur_ani]->w - 4, hgfx[hero.cur_ani]->h - 4 };
+                if(SDL_Colide(&rcX, &rcY)) {
+                    hero_die();
+                    return;
+                }
             }
         }
+        
         {
             Uint8 p = 0;
             for( ; p < MAX_PARTICLE; p++ ) {
