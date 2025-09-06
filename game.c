@@ -227,8 +227,20 @@ void eventPump() {
                 }
             }
                 break;
+        case SDL_JOYDEVICEADDED:
+            stick = SDL_JoystickOpen(e.cdevice.which);
+            if(stick != NULL)
+                printf("smx: Sucessfully initalied Joystick");
+        break;
+
+        case SDL_JOYDEVICEREMOVED:
+            SDL_JoystickClose(stick);
+            stick = NULL;
+            printf("smx: Joystick closed..\n");
+            break;
         }
-    }
+   }
+        
     SDL_Rect dst = { 0, 0, WIDTH, HEIGHT };
     SDL_RenderClear(renderer);
     SDL_RenderCopy(renderer, tex, 0, &dst);
@@ -298,7 +310,17 @@ void XBoxStartup() {
         }
 
         SDL_JoystickEventState(SDL_ENABLE);
+
+        if(SDL_NumJoysticks() > 0)
+            printf("smx: %d Joysticks Available\n", SDL_NumJoysticks());
+        else if(SDL_NumJoysticks() == 0)
+            printf("smx: 0 joysticks avilable..\n");
+
         stick = SDL_JoystickOpen(0);
+
+        if(stick != NULL)
+            printf("smx: Joystick initalized.\n");
+
         tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
         if(!tex) {
             fprintf(stderr, "Error creating texture: %s", SDL_GetError());

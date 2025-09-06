@@ -9,6 +9,7 @@ static int jump = 0, jump_ok = 0;
 int hero_ani = 0;
 void logic();
 static int shoot_ani = 0;
+
 static void fill_evil(Evil *e, int vpos, int type) {
 	e->vpos = vpos;
 	e->type = type;
@@ -19,6 +20,7 @@ static void fill_evil(Evil *e, int vpos, int type) {
 			break;
 	}
 }
+
 Level *load_level(const char *src) {
 	Level *lvl = 0;
 	FILE *fptr = 0;
@@ -43,37 +45,48 @@ Level *load_level(const char *src) {
 	}
 	return lvl;
 }
+
 void release_level(Level *lvl) {
 	free(lvl);
 }
+
 void render_pause() {
-	SDL_Rect rc = { 50,50,640-100,480-100 };
-	if(SDL_JoystickGetButton(stick, 1)) {
-		cur_scr = ID_GAME;
-	}
-	if(SDL_JoystickGetButton(stick, 0)) {
-		game_over();
-	}
-	SDL_BlitSurface(bg, 0, front, 0);
-	SDL_FillRect(front, &rc, 0);
-	SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, 255, 255, 255), "Paused - Press Circle to continue ");
-	SDL_PrintText(front, font, 75, 110, SDL_MapRGB(front->format, 255, 0, 0), "Press Triangle to Return to Menu ");
+    SDL_Rect rc = { 50,50,640-100,480-100 };
+    
+    if(stick && SDL_JoystickGetButton(stick, 1)) {
+        cur_scr = ID_GAME;
+    }
+    if(stick && SDL_JoystickGetButton(stick, 0)) {
+        game_over();
+    }
+    SDL_BlitSurface(bg, 0, front, 0);
+    SDL_FillRect(front, &rc, 0);
+    SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, 255, 255, 255), "Paused - Press Circle to continue ");
+    SDL_PrintText(front, font, 75, 110, SDL_MapRGB(front->format, 255, 0, 0), "Press Triangle to Return to Menu ");
 }
+
 void render_map(SDL_Surface *surf, Level *lvl) {
-		static int startby;
-		static int bx,by;
-		int gcount = 0;
-		Uint32 i;
-		startby = 75;
-		bx = 75; by = startby;
+    static int startby;
+    static int bx,by;
+    int gcount = 0;
+    Uint32 i;
+    startby = 75;
+    bx = 75; by = startby;   
+    
 #ifdef FOR_PSP
-		if(SDL_JoystickGetButton(stick, 10)) {
-			cur_scr = ID_PAUSED;
-			return;
-		}
+    // Check for joystick if not available
+    if(stick == NULL) {
+        try_init_joystick();
+    }
+    
+    if(stick && SDL_JoystickGetButton(stick, 10)) {
+        cur_scr = ID_PAUSED;
+        return;
+    }
 #endif
+
 #ifndef FOR_PSP
-		SDL_BlitSurface(bg, 0, surf, 0);
+        SDL_BlitSurface(bg, 0, surf, 0);
 #endif
 		logic();
 		for(i = 0; i < 700-4+24; i++)
@@ -164,14 +177,17 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 	if(lives < 0)
 		game_over();
 }
+
 void scroll_left() {
 	if(offset > 0)
 		offset -= 24;
 }
+
 void scroll_right() {
 	if(offset < MAX_TILE)
 		offset += 24;
 }
+
 static void move_left() {
 	hero.dir = 0;
 	if(hero.hpos > 0 && offset == 0) {
@@ -195,6 +211,7 @@ static void move_left() {
 			hero_ani = 1;
 	}
 }
+
 static void move_right() {
 	Uint8 check[5];
 	hero.dir = 1;
@@ -219,6 +236,7 @@ static void move_right() {
 		hero_ani = 1;
 	}
 }
+
 static void rls_bullet() {
 	if(hero.dir == 1)
 	rls_particle(&emiter, offset+hero.hpos+24+24+1, 1, hero.dir);
@@ -229,33 +247,44 @@ static void rls_bullet() {
 	Mix_PlayChannel( -1, fire_snd, 0);
 #endif
 }
+
 static int check_input() {
-	const Uint8 *keys = SDL_GetKeyboardState(0);
-	int b = SDL_JoystickGetHat(stick, 0);
-	static int w = 0;
-	if((keys[SDL_SCANCODE_A]  || SDL_JoystickGetButton(stick, 0)) && jump_ok == 1 && jump == 0)
-		jump = 1, shoot_ani = 0;
-	if((keys[SDL_SCANCODE_S] || SDL_JoystickGetButton(stick, 1)) && jump_ok == 1 && jump == 0) {
+    const Uint8 *keys = SDL_GetKeyboardState(0);
+    int axis_x = 0;
+    
+    
+    if(stick != NULL) {
+        axis_x = SDL_JoystickGetAxis(stick, 0); 
+    }
+    
+    static int w = 0;
+    
+    if((keys[SDL_SCANCODE_A] || (stick && SDL_JoystickGetButton(stick, 0))) && jump_ok == 1 && jump == 0)
+        jump = 1, shoot_ani = 0;
+        
+    if((keys[SDL_SCANCODE_S] || (stick && SDL_JoystickGetButton(stick, 1))) && jump_ok == 1 && jump == 0) {
         if(shoot_ani == 0) { shoot_ani = 1, hero.cur_ani = 5; }
-	}
-    int axis2 = SDL_JoystickGetAxis(stick, 0);
+    }
+    
+    
 #ifdef FOR_PSP
-	if(SDL_JoystickGetButton(stick, 7)) {
+    if(stick && SDL_JoystickGetButton(stick, 7)) {
 #else
-	if((keys[SDL_SCANCODE_LEFT] || b & SDL_HAT_LEFT || axis2 < -1000))  {
+    if((keys[SDL_SCANCODE_LEFT] || (stick && axis_x < -8000))) {
 #endif
- move_left();
-		return 0;
-	}
+        move_left();
+        return 0;
+    }
+    
 #ifdef FOR_PSP
-	if(SDL_JoystickGetButton(stick, 9)) {
+    if(stick && SDL_JoystickGetButton(stick, 9)) {
 #else
-	if((keys[SDL_SCANCODE_RIGHT] || b & SDL_HAT_RIGHT || axis2 > 1000)) {
+    if((keys[SDL_SCANCODE_RIGHT] || (stick && axis_x > 8000))) {
 #endif
- move_right();
-		return 0;
-	}
-	return 1;
+        move_right();
+        return 0;
+    }
+    return 1;
 }
 static void collect_item(int type) {
 	score += 10*type;

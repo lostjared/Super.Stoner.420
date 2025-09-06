@@ -43,6 +43,7 @@ extern Hero  hero;
 extern Evil evil[50];
 extern EvilGfx evil_gfx[4];
 extern int cur_level;
+
 extern Level *load_level(const char *src);
 extern void release_level(Level *);
 extern void render_map(SDL_Surface *surf, Level *lvl);
