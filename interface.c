@@ -45,7 +45,7 @@ Uint32 check_start_in(Uint32 i, void *v) {
 #ifdef FOR_PSP
 	 SDL_JoystickGetButton(stick, 8)
 #else
-	 b & SDL_HAT_UP || axis2 < -1000
+	 b & SDL_HAT_UP || axis2 < -8000
 #endif
       	) {
 		if(menu_level == 0 && cl_pos > 0)
@@ -57,7 +57,7 @@ Uint32 check_start_in(Uint32 i, void *v) {
 #ifdef FOR_PSP
 	 SDL_JoystickGetButton(stick, 6)
 #else
-	b & SDL_HAT_DOWN || axis2 > 1000
+	b & SDL_HAT_DOWN || axis2 > 8000
 #endif
             )
     	 {
@@ -66,7 +66,7 @@ Uint32 check_start_in(Uint32 i, void *v) {
 		if(menu_level == 1 && cl2_pos < 1)
 			cl2_pos++;
 	}
-	else if(SDL_JoystickGetButton(stick, 2))
+	else if(SDL_JoystickGetButton(stick, 0))
 	{
 		switch(menu_level) {
 			case 0:

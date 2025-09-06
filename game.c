@@ -321,6 +321,7 @@ void XBoxStartup() {
         if(stick != NULL)
             printf("smx: Joystick initalized.\n");
 
+        fflush(stdout);
         tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
         if(!tex) {
             fprintf(stderr, "Error creating texture: %s", SDL_GetError());
