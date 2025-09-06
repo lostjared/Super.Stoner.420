@@ -230,7 +230,7 @@ void eventPump() {
         case SDL_JOYDEVICEADDED:
             stick = SDL_JoystickOpen(e.cdevice.which);
             if(stick != NULL)
-                printf("smx: Sucessfully initalied Joystick");
+                printf("smx: Sucessfully initalied Joystick\n");
         break;
 
         case SDL_JOYDEVICEREMOVED:
