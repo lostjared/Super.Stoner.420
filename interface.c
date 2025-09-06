@@ -32,7 +32,7 @@ Uint32 intro_wait(Uint32 i, void *v) {
 	if(check_start != 0)
 		SDL_RemoveTimer(check_start);
 
-	check_start = SDL_AddTimer(500, check_start_in, 0);
+	check_start = SDL_AddTimer(1000, check_start_in, 0);
 	return 0;
 }
 
