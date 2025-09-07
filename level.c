@@ -1,5 +1,6 @@
 #include "level.h"
 #include "smx.h"
+#define FIRE_COOLDOWN_MS 250
 Level *level;
 Hero  hero;
 Evil  evil[50];
@@ -9,7 +10,7 @@ static int jump = 0, jump_ok = 0;
 int hero_ani = 0;
 void logic();
 static int shoot_ani = 0;
-
+static Uint32 last_fire_ticks = 0;
 static void fill_evil(Evil *e, int vpos, int type) {
 	e->vpos = vpos;
 	e->type = type;
@@ -236,7 +237,13 @@ static void move_right() {
 	}
 }
 
+
 static void rls_bullet() {
+    Uint32 now = SDL_GetTicks();
+    if (now - last_fire_ticks < (Uint32)FIRE_COOLDOWN_MS) {
+        return; 
+    }
+    last_fire_ticks = now;
 	if(hero.dir == 1)
 	rls_particle(&emiter, offset+hero.hpos+24+24+1, 1, hero.dir);
 	else
