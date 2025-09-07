@@ -354,6 +354,7 @@ void XBoxStartup() {
             }
         }
         init();
+        printf("smx: initialized\n");
         {
 #ifndef __EMSCRIPTEN__
             while(active == 1) {
@@ -362,11 +363,11 @@ void XBoxStartup() {
 #else
             emscripten_set_main_loop(eventPump, 0, 1);
 #endif
-
         }
         rls();
         SDL_JoystickClose(stick);
         SDL_Quit();
+        printf("smx: exit");
         return 0;
     }
     void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent) {
