@@ -367,7 +367,7 @@ void XBoxStartup() {
         rls();
         SDL_JoystickClose(stick);
         SDL_Quit();
-        printf("smx: exit");
+        printf("smx: exit\n");
         return 0;
     }
     void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent) {

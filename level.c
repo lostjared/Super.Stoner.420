@@ -171,7 +171,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 				bx = bx + 16;
 			}
 		}
-	if(level->tiles[hero.hpos+offset].block == 14) {
+	if (level != NULL && level->tiles[hero.hpos+offset].block == 14) {
 		reload_level();
 	}
 	if(lives < 0)
@@ -316,6 +316,7 @@ static void proc_collect() {
 		}
 	}
 }
+
 Uint32 proccess_game(Uint32 interval, void *p) {
 	if(level == 0)
 		return interval;
@@ -392,7 +393,6 @@ static void hero_die() {
 void proc_particles(Emiter *e) {
     unsigned int i = 0;
     static int lost_focus[50] = {0};
-    
     for( i = 0; i < MAX_PARTICLE; i++) {
         if(e->p[i].type != 0) {
             if(e->p[i].vpos >= MAX_TILE-24 || e->p[i].vpos <= 24 ||  level->tiles[e->p[i].vpos].solid)
@@ -401,9 +401,9 @@ void proc_particles(Emiter *e) {
                 continue;
             }
             if(e->p[i].dir == 0) {
-                e->p[i].vpos -= 24;
+                e->p[i].vpos -= 48;
             }
-            else e->p[i].vpos += 24;
+            else e->p[i].vpos += 48;
         }
     }
     for( i = 0; i < 50; i++ ) {
