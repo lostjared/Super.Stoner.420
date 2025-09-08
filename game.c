@@ -66,6 +66,7 @@ void init_game() {
     cur_scr = ID_START;
     check_in = SDL_AddTimer(225, check_start_in, 0);
 }
+
 static void init() {
     Uint8 i = 0;
     font = SDL_InitFont(get_path("D:\\", "font/system.mxf"));
@@ -123,12 +124,12 @@ static void init() {
         Mix_PlayChannel( -1, intro_snd, 0);
 #endif
 }
+
 SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *tex;
 
 extern void cleanup_all_timers();
-
 
 static void rls() {
 
@@ -174,7 +175,6 @@ static void rls() {
         }
     }
 
-
     if (bg) { SDL_FreeSurface(bg); bg = NULL; }
     if (lsd) { SDL_FreeSurface(lsd); lsd = NULL; }
     if (logo) { SDL_FreeSurface(logo); logo = NULL; }
@@ -190,7 +190,6 @@ static void rls() {
     Mix_CloseAudio();
     Mix_Quit();
 #endif
-
     if (cfont) { SDL_FreeFont(cfont); cfont = NULL; }
     if (font)  { SDL_FreeFont(font);  font  = NULL; }
 
@@ -216,6 +215,7 @@ static void rls() {
         window = NULL;
     }
 }
+
 static void render() {
     switch(cur_scr) {
         case ID_GAME:
@@ -291,158 +291,148 @@ void eventPump() {
    SDL_Delay(10);
 }
 
-#ifdef FOR_XBOX_OPENXDK
-void XBoxStartup() {
-    char **argv = 0;
-    int argc = 0;
-#else
-    int main(int argc, char **argv) {
-#endif
-        Uint32 mode = 0;
-        SDL_Surface *ico = 0;
-        int full = 0;
+int main(int argc, char **argv) {
+    Uint32 mode = 0;
+    SDL_Surface *ico = 0;
+    int full = 0;
 
-        if(argc == 4 && strcmp(argv[1], "--size") == 0) {
-            WIDTH = atoi(argv[2]);
-            HEIGHT = atoi(argv[3]);
-        }
-        if(argc == 4  && strcmp(argv[1],"--full") == 0) {
-            full = 1;
-            WIDTH = atoi(argv[2]);
-            HEIGHT = atoi(argv[3]);
-        }
-        if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
-            return -1;
-            
-        SDL_ShowCursor(SDL_FALSE);
-        ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
-	if(ico == NULL) {
-		fprintf(stderr, "Error loading icon, wrong path place this program in the directory with the resources.\n");
-		SDL_Quit();
-		return EXIT_FAILURE;
-	}
-        window = SDL_CreateWindow("Super Stoner 420", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
-        if(!window) {
-            fprintf(stderr, "Error creating window: %s\n", SDL_GetError());
-            SDL_Quit();
-            exit(-1);
-        }
-	    SDL_SetWindowIcon(window, ico);
-	    SDL_FreeSurface(ico);
-        renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-        if(!renderer) {
-            fprintf(stderr, "Error creating Renderer: %s\n", SDL_GetError());
-            SDL_Quit();
-            exit(-1);
-        }
-
-        if(full == 1) {
-            SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
-        }
-
-        SDL_JoystickEventState(SDL_ENABLE);
-
-        if(SDL_NumJoysticks() > 0)
-            printf("smx: %d Joysticks Available\n", SDL_NumJoysticks());
-        else if(SDL_NumJoysticks() == 0)
-            printf("smx: 0 joysticks avilable..\n");
-
-        stick = SDL_JoystickOpen(0);
-
-        if(stick != NULL)
-            printf("smx: Joystick initalized.\n");
-
-        fflush(stdout);
-        tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
-        if(!tex) {
-            fprintf(stderr, "Error creating texture: %s", SDL_GetError());
-            SDL_Quit();
-            exit(-1);
-        }
-        front = SDL_CreateRGBSurfaceFrom(NULL, 640, 480, 32, 640*4, 0x00FF0000, 0x0000FF00,0x000000FF,0xFF000000);
-        if(!front) {
-            fprintf(stderr, "Error creating surface: %s", SDL_GetError());
-            SDL_Quit();
-            exit(-1);
-        }
-
-
-
-        if(argc == 3 && strcmp(argv[1], "--run") == 0)
-        {
-            memset(custom_lvl, 0, sizeof(custom_lvl));
-            strcpy(custom_lvl, argv[2]);
-            { 
-                FILE *fptr = fopen(custom_lvl, "r");
-                if(!fptr)
-                {
-                    custom_level = 0;
-                    fprintf(stderr, "Error level map %s not found!", custom_lvl);
-                } else {
-                    custom_level = 1;
-                    fclose(fptr);
-                }
-            }
-        }
-        init();
-        printf("smx: initialized\n");
-        {
-#ifndef __EMSCRIPTEN__
-            while(active == 1) {
-                eventPump();
-            }
-#else
-            emscripten_set_main_loop(eventPump, 0, 1);
-#endif
-        }
-        rls();
-        SDL_JoystickClose(stick);
+    if(argc == 4 && strcmp(argv[1], "--size") == 0) {
+        WIDTH = atoi(argv[2]);
+        HEIGHT = atoi(argv[3]);
+    }
+    if(argc == 4  && strcmp(argv[1],"--full") == 0) {
+        full = 1;
+        WIDTH = atoi(argv[2]);
+        HEIGHT = atoi(argv[3]);
+    }
+    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
+        return -1;
+        
+    SDL_ShowCursor(SDL_FALSE);
+    ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
+    if(ico == NULL) {
+        fprintf(stderr, "Error loading icon, wrong path place this program in the directory with the resources.\n");
         SDL_Quit();
-        printf("smx: exit\n");
-        return 0;
+        return EXIT_FAILURE;
     }
-    void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent) {
-        void *buf , *buf2;
-        int i,z,i2,z2;
-        buf = lock(surf, surf->format->BitsPerPixel);
-        buf2 = lock(front_surf, front_surf->format->BitsPerPixel);
-        i2 = rc2->x;
+    window = SDL_CreateWindow("Super Stoner 420", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, SDL_WINDOW_SHOWN);
+    if(!window) {
+        fprintf(stderr, "Error creating window: %s\n", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+    SDL_SetWindowIcon(window, ico);
+    SDL_FreeSurface(ico);
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
+    if(!renderer) {
+        fprintf(stderr, "Error creating Renderer: %s\n", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+
+    if(full == 1) {
+        SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
+    }
+
+    SDL_JoystickEventState(SDL_ENABLE);
+
+    if(SDL_NumJoysticks() > 0)
+        printf("smx: %d Joysticks Available\n", SDL_NumJoysticks());
+    else if(SDL_NumJoysticks() == 0)
+        printf("smx: 0 joysticks avilable..\n");
+
+    stick = SDL_JoystickOpen(0);
+
+    if(stick != NULL)
+        printf("smx: Joystick initalized.\n");
+
+    fflush(stdout);
+    tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, 640, 480);
+    if(!tex) {
+        fprintf(stderr, "Error creating texture: %s", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+    front = SDL_CreateRGBSurfaceFrom(NULL, 640, 480, 32, 640*4, 0x00FF0000, 0x0000FF00,0x000000FF,0xFF000000);
+    if(!front) {
+        fprintf(stderr, "Error creating surface: %s", SDL_GetError());
+        SDL_Quit();
+        exit(-1);
+    }
+
+    if(argc == 3 && strcmp(argv[1], "--run") == 0)
+    {
+        memset(custom_lvl, 0, sizeof(custom_lvl));
+        strcpy(custom_lvl, argv[2]);
+        { 
+            FILE *fptr = fopen(custom_lvl, "r");
+            if(!fptr)
+            {
+                custom_level = 0;
+                fprintf(stderr, "Error level map %s not found!", custom_lvl);
+            } else {
+                custom_level = 1;
+                fclose(fptr);
+            }
+        }
+    }
+    init();
+    printf("smx: initialized\n");
+    {
+#ifndef __EMSCRIPTEN__
+        while(active == 1) {
+            eventPump();
+        }
+#else
+        emscripten_set_main_loop(eventPump, 0, 1);
+#endif
+    }
+    rls();
+    SDL_JoystickClose(stick);
+    SDL_Quit();
+    printf("smx: exit\n");
+    return 0;
+}
+
+void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent) {
+    void *buf , *buf2;
+    int i,z,i2,z2;
+    buf = lock(surf, surf->format->BitsPerPixel);
+    buf2 = lock(front_surf, front_surf->format->BitsPerPixel);
+    i2 = rc2->x;
+    z2 = rc2->y;
+    for(i = rc->w-1; i > 0; i--) {
+        for(z = 0; z < rc->h; z++) {
+            SDL_Color col;
+            Uint32 color = getpixel(surf, i, z, surf->format->BitsPerPixel, surf->pitch, &col);
+            if(color != transparent)
+                setpixel(buf2, i2, z2, SDL_MapRGB(front_surf->format, col.r, col.g, col.b), front_surf->format->BitsPerPixel, front_surf->pitch);
+            z2++;
+        }
         z2 = rc2->y;
-        for(i = rc->w-1; i > 0; i--) {
-            for(z = 0; z < rc->h; z++) {
-                SDL_Color col;
-                Uint32 color = getpixel(surf, i, z, surf->format->BitsPerPixel, surf->pitch, &col);
-                if(color != transparent)
-                    setpixel(buf2, i2, z2, SDL_MapRGB(front_surf->format, col.r, col.g, col.b), front_surf->format->BitsPerPixel, front_surf->pitch);
-                z2++;
-            }
-            z2 = rc2->y;
-            i2++;
-        }
-        unlock(surf);
-        unlock(front_surf);
+        i2++;
     }
-    int SDL_Colide(SDL_Rect *rc, SDL_Rect *rc2) {
-        int i,z;
-        if(!(rc->x > 0 && rc->x+rc->w < 640 && rc->y > 0 && rc->y+rc->h < 480))
-            return 0;
-        for( i = rc->x; i < rc->x+rc->w; i++) {
-            for(z = rc->y; z < rc->y+rc->h; z++) {
-                if(i >= rc2->x && i <= rc2->x+rc2->w && z >= rc2->y && z <= rc2->y+rc2->h) return 1;
-            }
-        }
+    unlock(surf);
+    unlock(front_surf);
+}
+
+int SDL_Colide(SDL_Rect *rc, SDL_Rect *rc2) {
+    int i,z;
+    if(!(rc->x > 0 && rc->x+rc->w < 640 && rc->y > 0 && rc->y+rc->h < 480))
         return 0;
+    for( i = rc->x; i < rc->x+rc->w; i++) {
+        for(z = rc->y; z < rc->y+rc->h; z++) {
+            if(i >= rc2->x && i <= rc2->x+rc2->w && z >= rc2->y && z <= rc2->y+rc2->h) return 1;
+        }
     }
-    char *get_path(const char *p, const char *s) {
-        static char sbuf[4096];
-#ifdef FOR_XBOX_XDK
-        snprintf(sbuf, 4095, "%s%s", p, s);
-        return sbuf;
-#endif
+    return 0;
+}
+char *get_path(const char *p, const char *s) {
+    static char sbuf[4096];
 #ifdef __EMSCRIPTEN__
-        snprintf(sbuf, 4095, "/assets/%s", s);
-        return sbuf;
+    snprintf(sbuf, 4095, "/assets/%s", s);
+    return sbuf;
 #endif
-        snprintf(sbuf,4095, "%s", s);
-        return sbuf;
-    }
+    snprintf(sbuf,4095, "%s", s);
+    return sbuf;
+}
