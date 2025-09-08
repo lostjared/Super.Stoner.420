@@ -13,4 +13,4 @@ all: $(OBJ_FILES)
 	$(CXX) $(OBJ_FILES)  -o SuperStoner.html  $(LDFLAGS)
 
 clean:
-	rm -f SuperStoner420/SuperStoner *.o 
+	rm -f SuperStoner420/SuperStoner *.o  *.js *.wasm *.data *.html
