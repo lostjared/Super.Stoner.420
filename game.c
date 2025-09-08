@@ -313,19 +313,7 @@ void XBoxStartup() {
         }
         if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
             return -1;
-#ifdef FOR_PSP
-        scePowerSetClockFrequency(333, 333, 166); 
-#endif
-        SDL_DisplayMode current;
-        if(SDL_GetCurrentDisplayMode(0, &current) != 0) {
-            fprintf(stderr, "Error could not get display mode: %s", SDL_GetError());
-            SDL_Quit();
-            exit(-1);
-        }
-
-
-        current.w = 640;
-        current.h = 480;
+            
         SDL_ShowCursor(SDL_FALSE);
         ico = SDL_LoadBMP(get_path("D:\\", "img/col1.bmp"));
 	if(ico == NULL) {
