@@ -11,6 +11,27 @@ int hero_ani = 0;
 void logic();
 static int shoot_ani = 0;
 static Uint32 last_fire_ticks = 0;
+
+static int tile_solid_safe(int idx) {
+    if (!level || !level->tiles) return 1; 
+    if (idx < 0 || idx >= MAX_TILE) return 1;
+    return level->tiles[idx].solid ? 1 : 0;
+}
+
+static int tile_block_safe(int idx) {
+    if (!level || !level->tiles) return -1;
+    if (idx < 0 || idx >= MAX_TILE) return -1;
+    return level->tiles[idx].block;
+}
+
+static int gfx_index_valid(int idx) {
+    return (idx >= 0 && idx < (int)(sizeof(gfx) / sizeof(gfx[0])) && gfx[idx] != NULL);
+}
+
+static int collect_index_valid(int idx) {
+    return (idx >= 0 && idx < (int)(sizeof(collect) / sizeof(collect[0])) && collect[idx] != NULL);
+}
+
 static void fill_evil(Evil *e, int vpos, int type) {
 	e->vpos = vpos;
 	e->type = type;
@@ -86,109 +107,133 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 #endif
 
 #ifndef FOR_PSP
-        SDL_BlitSurface(bg, 0, surf, 0);
+    if (bg && surf) SDL_BlitSurface(bg, 0, surf, 0);
 #endif
-		logic();
-		for(i = 0; i < 700-4+24; i++)
-		{
-			SDL_Rect rc = { bx, by, 16, 16 };
-			SDL_BlitSurface(gfx[lvl->tiles[offset+i].block], 0, surf, &rc);			
-			by = by + 16;
-			gcount++;
-			if(gcount > 23)
-			{
-				gcount = 0;
-				by = startby;
-				bx = bx + 16;
-			}			
-		}
-		{
-			SDL_Rect rc = { 25, 15, 640-50, 30 };
-			SDL_FillRect(surf,&rc, 0);
-		}
-		SDL_PrintText(surf, font, 25, 25, SDL_MapRGB(surf->format, 255, 255, 255), lvl->level_name);
-		{
-			static char buf[256];
-			memset(buf, 0, sizeof(buf));
-			snprintf(buf,255, "Score: %d Lives: %d", score, lives);
-			SDL_PrintText(surf,cfont,350, 25, SDL_MapRGB(surf->format, rand()%255, rand()%255, 255), buf);
-		}
-		startby = 75;
-		bx = 75; by = startby;
-		gcount = 0;
-		hero.x = hero.y = 0;
-		if(hero_ani == 1) {
-			static int w = 0;
-			if(w++ >= 3) w = 0;
-			hero.cur_ani = w;
-		}
-		
-		if(hero.cur_ani < 0 || hero.cur_ani >= 12) {
-			printf("Warning: Invalid hero animation index: %d\n", hero.cur_ani);
-			hero.cur_ani = 0;
-		}
-		
-		for( i = 0; i < 700-4+24; i++) {
-			if(hgfx[hero.cur_ani] == NULL) {
-				printf("Warning: Null hero graphics for animation %d\n", hero.cur_ani);
-				continue;
-			}
+    logic();
+    if (!lvl || !lvl->tiles) return;
+    for(i = 0; i < 700-4+24; i++)
+    {
+        int idx = offset + (int)i;
+        if (idx < 0 || idx >= MAX_TILE) { 
+            bx += 16; by = ( ( (++gcount) > 23 ) ? (startby + ( (gcount = 0), (bx += 16, 0) )) : by );
+        } else {
+            int block = tile_block_safe(idx);
+            if (block >= 0 && gfx_index_valid(block)) {
+                SDL_Rect rc = { bx, by, 16, 16 };
+                SDL_BlitSurface(gfx[block], 0, surf, &rc);
+            }
+        }
+        by = by + 16;
+        gcount++;
+        if(gcount > 23)
+        {
+            gcount = 0;
+            by = startby;
+            bx = bx + 16;
+        }           
+    }
+
+    {
+		SDL_Rect rc = { 25, 15, 640-50, 30 };
+		SDL_FillRect(surf,&rc, 0);
+	}
+	SDL_PrintText(surf, font, 25, 25, SDL_MapRGB(surf->format, 255, 255, 255), lvl->level_name);
+	{
+		static char buf[256];
+		memset(buf, 0, sizeof(buf));
+		snprintf(buf,255, "Score: %d Lives: %d", score, lives);
+		SDL_PrintText(surf,cfont,350, 25, SDL_MapRGB(surf->format, rand()%255, rand()%255, 255), buf);
+	}
+	startby = 75;
+	bx = 75; by = startby;
+	gcount = 0;
+	hero.x = hero.y = 0;
+	if(hero_ani == 1) {
+		static int w = 0;
+		if(w++ >= 3) w = 0;
+		hero.cur_ani = w;
+	}
+
+	if(hero.cur_ani < 0 || hero.cur_ani >= (int)(sizeof(hgfx)/sizeof(hgfx[0])) ) {
+		printf("Warning: Invalid hero animation index: %d\n", hero.cur_ani);
+		hero.cur_ani = 0;
+	}
+
+	for( i = 0; i < 700-4+24; i++) {
+		if (!hgfx[hero.cur_ani]) {
 			
+		} else {
 			SDL_Rect rc = { bx, by, hgfx[hero.cur_ani]->w-1, hgfx[hero.cur_ani]->h };
-			if(i == hero.hpos) {
-				hero.x = bx, hero.y = by;
+			if((int)i == hero.hpos) {
+				hero.x = bx; hero.y = by;
 				SDL_SetColorKey(hgfx[hero.cur_ani], SDL_TRUE, SDL_MapRGB(hgfx[hero.cur_ani]->format, 255, 255, 255));
 				if(hero.dir == 1)
-				SDL_BlitSurface( hgfx[hero.cur_ani], 0, surf, &rc);
+					SDL_BlitSurface( hgfx[hero.cur_ani], 0, surf, &rc);
 				else {
 					SDL_Rect rc2 = { 1, 1, hgfx[hero.cur_ani]->w-1, hgfx[hero.cur_ani]->h-1 };
 					SDL_ReverseBlt(hgfx[hero.cur_ani], &rc2, surf, &rc, SDL_MapRGB(hgfx[hero.cur_ani]->format, 255, 255, 255));
 				}
 			}
-			{
-				Uint8 pos = 0;
-				for(pos = 0; pos < MAX_PARTICLE; pos++) {
-					if(emiter.p[pos].type != 0 && emiter.p[pos].vpos == i+offset) {
+		}
+
+		{
+			Uint8 pos = 0;
+			for(pos = 0; pos < MAX_PARTICLE; pos++) {
+				if(pos < MAX_PARTICLE && emiter.p[pos].type != 0 && emiter.p[pos].vpos == (int)i+offset) {
+					if (particles && particles[0]) {
 						SDL_Rect rcX = { bx, by, particles[0]->w, particles[0]->h };
 						SDL_SetColorKey(particles[0], SDL_TRUE, SDL_MapRGB(particles[0]->format, 255, 255, 255));
 						SDL_BlitSurface(particles[0], 0, surf, &rcX );
-						emiter.p[pos].x = bx, emiter.p[pos].y = by;
-					}
-				}
-				for(pos = 0; pos < 50; pos++) {
-					if(evil[pos].type != -1 && evil[pos].vpos == i+offset) {
-						SDL_Rect erc = { 0,  0, evil[pos].egfx->gfx[evil[pos].type]->w-1, evil[pos].egfx->gfx[evil[pos].type]->h };
-						SDL_Rect prc = { bx, by, evil[pos].egfx->gfx[evil[pos].type]->w, evil[pos].egfx->gfx[evil[pos].type]->h };
-						if(evil[pos].dir == 1) {
-							SDL_SetColorKey(evil[pos].egfx->gfx[evil[pos].cur_ani], SDL_TRUE, SDL_MapRGB(evil[pos].egfx->gfx[evil[pos].cur_ani]->format, 255, 255, 255));
-							SDL_BlitSurface(evil[pos].egfx->gfx[evil[pos].cur_ani], 0, surf, &prc);
-						}
-						else
-							SDL_ReverseBlt(evil[pos].egfx->gfx[evil[pos].cur_ani], &erc, surf, &prc, SDL_MapRGB(evil[pos].egfx->gfx[evil[pos].cur_ani]->format, 255, 255, 255));
-						evil[pos].x = bx, evil[pos].y = by;
-					}
-					if(level->items[pos].type != 0 && level->items[pos].vpos == i+offset) {
-						SDL_Rect rc = { bx, by, collect[level->items[pos].type]->w, collect[level->items[pos].type]->h };
-						SDL_SetColorKey(collect[level->items[pos].type], SDL_TRUE, SDL_MapRGB(collect[level->items[pos].type]->format, 255, 255, 255));
-						SDL_BlitSurface(collect[level->items[pos].type], 0, surf, &rc);
+						emiter.p[pos].x = bx; emiter.p[pos].y = by;
 					}
 				}
 			}
-			by = by + 16;
-			gcount++;
-			if(gcount > 23) {
-				gcount = 0;
-				by = startby;
-				bx = bx + 16;
+			for(pos = 0; pos < 50; pos++) {
+				if(pos < 50 && evil[pos].type != -1 && evil[pos].vpos == (int)i+offset) {
+					
+					if(evil[pos].egfx && evil[pos].egfx->gfx && evil[pos].cur_ani >= 0) {
+					
+						int ani = evil[pos].cur_ani;
+						if (evil[pos].egfx->gfx[ani]) {
+							SDL_Rect erc = { 0,  0, evil[pos].egfx->gfx[ani]->w-1, evil[pos].egfx->gfx[ani]->h };
+							SDL_Rect prc = { bx, by, evil[pos].egfx->gfx[ani]->w, evil[pos].egfx->gfx[ani]->h };
+							if(evil[pos].dir == 1) {
+								SDL_SetColorKey(evil[pos].egfx->gfx[ani], SDL_TRUE, SDL_MapRGB(evil[pos].egfx->gfx[ani]->format, 255, 255, 255));
+								SDL_BlitSurface(evil[pos].egfx->gfx[ani], 0, surf, &prc);
+							} else {
+								SDL_ReverseBlt(evil[pos].egfx->gfx[ani], &erc, surf, &prc, SDL_MapRGB(evil[pos].egfx->gfx[ani]->format, 255, 255, 255));
+							}
+							evil[pos].x = bx; evil[pos].y = by;
+						}
+					}
+				}
+				if(pos < 50 && level->items[pos].type != 0 && level->items[pos].vpos == (int)i+offset) {
+					int t = level->items[pos].type;
+					if (collect && collect_index_valid(t)) {
+						SDL_Rect rc = { bx, by, collect[t]->w, collect[t]->h };
+						SDL_SetColorKey(collect[t], SDL_TRUE, SDL_MapRGB(collect[t]->format, 255, 255, 255));
+						SDL_BlitSurface(collect[t], 0, surf, &rc);
+					}
+				}
 			}
 		}
-	if(hero.hpos + offset >= 0 && hero.hpos + offset < MAX_TILE && 
-	   level != NULL && level->tiles != NULL) {
-		if(level->tiles[hero.hpos+offset].block == 14) {
-			reload_level();
+		by = by + 16;
+		gcount++;
+		if(gcount > 23) {
+			gcount = 0;
+			by = startby;
+			bx = bx + 16;
 		}
 	}
-	if(lives < 0)
+
+    
+    int hero_idx = hero.hpos + offset;
+    if(hero_idx >= 0 && hero_idx < MAX_TILE && level && level->tiles) {
+        if(level->tiles[hero_idx].block == 14) {
+            reload_level();
+        }
+    }
+    if(lives < 0)
 		game_over();
 }
 
@@ -207,22 +252,17 @@ static void move_left() {
         printf("Warning: Null level or tiles in move_left\n");
         return;
     }
-    
+
     hero.dir = 0;
     if(hero.hpos > 0 && offset == 0) {
         if(hero.hpos >= 24) {
             Uint8 check[5];
-            check[0] = level->tiles[hero.hpos-24].solid;
-            check[1] = level->tiles[hero.hpos+1-24].solid;
-            check[2] = level->tiles[hero.hpos+2-24].solid;
-            check[3] = level->tiles[hero.hpos+3-24].solid;
-            
-            if(hero.hpos >= 48) {
-                check[4] = level->tiles[hero.hpos-24-24].solid;
-            } else {
-                check[4] = 1; 
-            }
-            
+            int a0 = hero.hpos-24, a1 = hero.hpos+1-24, a2 = hero.hpos+2-24, a3 = hero.hpos+3-24, a4 = hero.hpos-48;
+            check[0] = tile_solid_safe(a0);
+            check[1] = tile_solid_safe(a1);
+            check[2] = tile_solid_safe(a2);
+            check[3] = tile_solid_safe(a3);
+            check[4] = (a4 >= 0) ? tile_solid_safe(a4) : 1;
             if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) hero.hpos -= 24;
             hero_ani = 1;
         }
@@ -230,17 +270,12 @@ static void move_left() {
     else {
         if(hero.hpos + offset >= 24) {
             Uint8 check[5];
-            check[0] = level->tiles[hero.hpos+offset-24].solid;
-            check[1] = level->tiles[hero.hpos+offset+1-24].solid;
-            check[2] = level->tiles[hero.hpos+offset+2-24].solid;
-            check[3] = level->tiles[hero.hpos+offset+3-24].solid;
-            
-            if(hero.hpos + offset >= 48) {
-                check[4] = level->tiles[hero.hpos+offset-24-24].solid;
-            } else {
-                check[4] = 1; 
-            }
-            
+            int base = hero.hpos + offset;
+            check[0] = tile_solid_safe(base-24);
+            check[1] = tile_solid_safe(base+1-24);
+            check[2] = tile_solid_safe(base+2-24);
+            check[3] = tile_solid_safe(base+3-24);
+            check[4] = (base >= 48) ? tile_solid_safe(base-48) : 1;
             if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) scroll_left();
             hero_ani = 1;
         }
@@ -252,37 +287,16 @@ static void move_right() {
         printf("Warning: Null level or tiles in move_right\n");
         return;
     }
-    
+
     Uint8 check[5];
     hero.dir = 1;
     if(hero.hpos < 24*15) {
         if(hero.hpos + 27 < MAX_TILE) {
-            check[0] = level->tiles[hero.hpos + 27].solid;
-            
-            if(hero.hpos + 27 + 24 < MAX_TILE) {
-                check[1] = level->tiles[hero.hpos + 27 + 24].solid;
-            } else {
-                check[1] = 1; 
-            }
-            
-            if(hero.hpos + 27 + 23 < MAX_TILE) {
-                check[2] = level->tiles[hero.hpos + 27 + 23].solid;
-            } else {
-                check[2] = 1;
-            }
-            
-            if(hero.hpos + 27 + 22 < MAX_TILE) {
-                check[3] = level->tiles[hero.hpos + 27 + 22].solid;
-            } else {
-                check[3] = 1;
-            }
-            
-            if(hero.hpos + 27 + 21 < MAX_TILE) {
-                check[4] = level->tiles[hero.hpos + 27 + 21].solid;
-            } else {
-                check[4] = 1;
-            }
-            
+            check[0] = tile_solid_safe(hero.hpos + 27);
+            check[1] = tile_solid_safe(hero.hpos + 27 + 24);
+            check[2] = tile_solid_safe(hero.hpos + 27 + 23);
+            check[3] = tile_solid_safe(hero.hpos + 27 + 22);
+            check[4] = tile_solid_safe(hero.hpos + 27 + 21);
             if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) hero.hpos += 24;
             hero_ani = 1;
             if(jump_ok == 0 && jump == 0 && hero_ani == 0 && shoot_ani == 0)
@@ -290,33 +304,13 @@ static void move_right() {
         }
     }
     else {
-        if(hero.hpos + 27 + offset < MAX_TILE) {
-            check[0] = level->tiles[hero.hpos + 27 + offset].solid;
-            
-            if(hero.hpos + 27 + 24 + offset < MAX_TILE) {
-                check[1] = level->tiles[hero.hpos + 27 + 24 + offset].solid;
-            } else {
-                check[1] = 1;
-            }
-            
-            if(hero.hpos + 27 + 23 + offset < MAX_TILE) {
-                check[2] = level->tiles[hero.hpos + 27 + 23 + offset].solid;
-            } else {
-                check[2] = 1;
-            }
-            
-            if(hero.hpos + 27 + 22 + offset < MAX_TILE) {
-                check[3] = level->tiles[hero.hpos + 27 + 22 + offset].solid;
-            } else {
-                check[3] = 1;
-            }
-            
-            if(hero.hpos + 27 + 21 + offset < MAX_TILE) {
-                check[4] = level->tiles[hero.hpos + 27 + 21 + offset].solid;
-            } else {
-                check[4] = 1;
-            }
-            
+        int base = hero.hpos + 27 + offset;
+        if(base < MAX_TILE) {
+            check[0] = tile_solid_safe(base);
+            check[1] = tile_solid_safe(base + 24);
+            check[2] = tile_solid_safe(base + 23);
+            check[3] = tile_solid_safe(base + 22);
+            check[4] = tile_solid_safe(base + 21);
             if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) scroll_right();
             hero_ani = 1;
         }
@@ -416,38 +410,50 @@ static void proc_collect() {
 }
 
 Uint32 proccess_game(Uint32 interval, void *p) {
-	if(level == 0)
-		return interval;
-	int x = check_input();
-	proc_collect();
-	proc_particles(&emiter);
-	if(jump == 0) {
-		if((! level->tiles[hero.hpos+offset+4].solid )&& (!level->tiles[hero.hpos+offset+4+24].solid))
-		{
-			hero.hpos++;
-			hero.cur_ani = 4;
-		}
-		else {
-			if(shoot_ani == 0) {
-				jump_ok = 1; jump = 0; 
-				hero_ani = 1;
-				hero.cur_ani = 0;
-			}
-		}
-	}
-	else {
-		jump++;
-		if(hero.hpos > 0 && !level->tiles[hero.hpos+offset-1].solid)
-			hero.hpos--;
-		hero.cur_ani = 4;
-		if(jump > 8) {
-			jump = 0;
-			jump_ok = 0;
-		}
-	}
-	if(x == 1)
-		hero_ani = 0;
-	return interval;
+    if(level == 0)
+        return interval;
+    int x = check_input();
+    proc_collect();
+    proc_particles(&emiter);
+    if(jump == 0) {
+        int idx1 = hero.hpos + offset + 4;
+        int idx2 = hero.hpos + offset + 4 + 24;
+        if (idx1 >= 0 && idx1 < MAX_TILE && idx2 >= 0 && idx2 < MAX_TILE) {
+            if((! tile_solid_safe(idx1)) && (! tile_solid_safe(idx2)))
+            {
+                hero.hpos++;
+                hero.cur_ani = 4;
+            } else {
+                if(shoot_ani == 0) {
+                    jump_ok = 1; jump = 0; 
+                    hero_ani = 1;
+                    hero.cur_ani = 0;
+                }
+            }
+        } else {
+            if(shoot_ani == 0) {
+                jump_ok = 1; jump = 0; 
+                hero_ani = 1;
+                hero.cur_ani = 0;
+            }
+        }
+    }
+    else {
+        jump++;
+        if(hero.hpos > 0) {
+            int idx = hero.hpos + offset - 1;
+            if (idx >= 0 && idx < MAX_TILE && !tile_solid_safe(idx))
+                hero.hpos--;
+        }
+        hero.cur_ani = 4;
+        if(jump > 8) {
+            jump = 0;
+            jump_ok = 0;
+        }
+    }
+    if(x == 1)
+        hero_ani = 0;
+    return interval;
 }
 void logic() {
 	 if(shoot_ani == 0 && hero_ani == 0 && jump_ok == 0 && jump == 0)
@@ -498,12 +504,11 @@ void proc_particles(Emiter *e) {
     }
     
     for(i = 0; i < MAX_PARTICLE; i++) {
-        if(i >= MAX_PARTICLE || e->p[i].type == 0) {
+        if(e->p[i].type == 0) {
             continue;
         }
         
-        if(e->p[i].vpos >= MAX_TILE-24 || e->p[i].vpos <= 24 || 
-           (level && level->tiles && e->p[i].vpos < MAX_TILE && level->tiles[e->p[i].vpos].solid))
+        if(e->p[i].vpos >= MAX_TILE-24 || e->p[i].vpos <= 24 || tile_solid_safe(e->p[i].vpos))
         {
             e->p[i].type = 0;
             continue;
@@ -526,9 +531,10 @@ void proc_particles(Emiter *e) {
     }
     for( i = 0; i < 50; i++ ) {
         Uint8 check[5];
+        if(i >= 50) continue;
         if(evil[i].type != -1) {
             if(evil[i].vpos + 4 >= 0 && evil[i].vpos + 4 < MAX_TILE) {
-                if(!level->tiles[evil[i].vpos+4].solid)
+                if(!tile_solid_safe(evil[i].vpos+4))
                     evil[i].vpos++;
             }
             
@@ -536,10 +542,10 @@ void proc_particles(Emiter *e) {
             
             int level_width = 24; 
             
-            int enemy_tile_x = evil[i].vpos % level_width;
-            int enemy_tile_y = evil[i].vpos / level_width;
-            int hero_tile_x = (hero.hpos + offset) % level_width;
-            int hero_tile_y = (hero.hpos + offset) / level_width;
+            int enemy_tile_x = (evil[i].vpos >= 0) ? (evil[i].vpos % level_width) : 0;
+            int enemy_tile_y = (evil[i].vpos >= 0) ? (evil[i].vpos / level_width) : 0;
+            int hero_tile_x = ((hero.hpos + offset) >= 0) ? ((hero.hpos + offset) % level_width) : 0;
+            int hero_tile_y = ((hero.hpos + offset) >= 0) ? ((hero.hpos + offset) / level_width) : 0;
             
             int vertical_distance = abs(enemy_tile_y - hero_tile_y);
             
@@ -567,16 +573,11 @@ void proc_particles(Emiter *e) {
             int move_speed = is_aggressive ? 48 : 24; 
             
             if(evil[i].dir == 0) {
-                check[0] = level->tiles[evil[i].vpos-move_speed].solid;
-                check[1] = level->tiles[evil[i].vpos+1-move_speed].solid;
-                check[2] = level->tiles[evil[i].vpos+2-move_speed].solid;
-                check[3] = level->tiles[evil[i].vpos+3-move_speed].solid;
-                
-                if(evil[i].vpos >= move_speed + 24 && evil[i].vpos < MAX_TILE) {
-                    check[4] = level->tiles[evil[i].vpos-move_speed-24].solid;
-                } else {
-                    check[4] = 1; 
-                }
+                check[0] = tile_solid_safe(evil[i].vpos - move_speed);
+                check[1] = tile_solid_safe(evil[i].vpos + 1 - move_speed);
+                check[2] = tile_solid_safe(evil[i].vpos + 2 - move_speed);
+                check[3] = tile_solid_safe(evil[i].vpos + 3 - move_speed);
+                check[4] = tile_solid_safe(evil[i].vpos - move_speed - 24);
                 
                 if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) 
                     evil[i].vpos -= move_speed; 
@@ -587,31 +588,11 @@ void proc_particles(Emiter *e) {
             }
             else if(evil[i].dir == 1) {
                 int check_pos = move_speed + 3;
-                check[0] = level->tiles[evil[i].vpos + check_pos].solid;
-                
-                if(evil[i].vpos + check_pos + 24 < MAX_TILE) {
-                    check[1] = level->tiles[evil[i].vpos + check_pos + 24].solid;
-                } else {
-                    check[1] = 1; 
-                }
-                
-                if(evil[i].vpos + check_pos + 23 < MAX_TILE) {
-                    check[2] = level->tiles[evil[i].vpos + check_pos + 23].solid;
-                } else {
-                    check[2] = 1;
-                }
-                
-                if(evil[i].vpos + check_pos + 22 < MAX_TILE) {
-                    check[3] = level->tiles[evil[i].vpos + check_pos + 22].solid;
-                } else {
-                    check[3] = 1;
-                }
-                
-                if(evil[i].vpos + check_pos + 21 < MAX_TILE) {
-                    check[4] = level->tiles[evil[i].vpos + check_pos + 21].solid;
-                } else {
-                    check[4] = 1;
-                }
+                check[0] = tile_solid_safe(evil[i].vpos + check_pos);
+                check[1] = tile_solid_safe(evil[i].vpos + check_pos + 24);
+                check[2] = tile_solid_safe(evil[i].vpos + check_pos + 23);
+                check[3] = tile_solid_safe(evil[i].vpos + check_pos + 22);
+                check[4] = tile_solid_safe(evil[i].vpos + check_pos + 21);
                 
                 if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) 
                     evil[i].vpos += move_speed;
@@ -629,7 +610,7 @@ void proc_particles(Emiter *e) {
                     if(evil[i].egfx && evil[i].egfx->gfx && 
                        evil[i].cur_ani >= 0 && evil[i].cur_ani < 8 && 
                        evil[i].egfx->gfx[evil[i].cur_ani] && 
-                       hero.cur_ani >= 0 && hero.cur_ani < 12 && 
+                       hero.cur_ani >= 0 && hero.cur_ani < (int)(sizeof(hgfx)/sizeof(hgfx[0])) && 
                        hgfx[hero.cur_ani]) {
                         
                         SDL_Rect rcY = { evil[i].x + 2, evil[i].y + 2, evil[i].egfx->gfx[evil[i].cur_ani]->w - 4, evil[i].egfx->gfx[evil[i].cur_ani]->h - 4 };
@@ -645,7 +626,7 @@ void proc_particles(Emiter *e) {
             {
                 Uint8 p = 0;
                 for(; p < MAX_PARTICLE; p++) {
-                    if(p < MAX_PARTICLE && e->p[p].type != 0) {
+                    if(e->p[p].type != 0) {
                         if(e->p[p].x > 0 && e->p[p].y > 0 && e->p[p].x < 640 && e->p[p].y < 480 && 
                            evil[i].x > 0 && evil[i].y > 0 && evil[i].x < 640 && evil[i].y < 480 &&
                            particles != NULL && particles[0] != NULL) {
@@ -670,6 +651,7 @@ void proc_particles(Emiter *e) {
         }
     }
 }
+
 static int get_off_particle(Emiter *e) {
 	unsigned int i = 0;
 	for ( i = 0; i < MAX_PARTICLE; i++ ) {
@@ -678,15 +660,16 @@ static int get_off_particle(Emiter *e) {
 	}
 	return -1;
 }
+
 void rls_particle(Emiter *e, int vpos, int type, int dir) {
     if (!e || vpos < 0 || vpos >= MAX_TILE || type <= 0) {
         return;
     }
     
-	int off = get_off_particle(e);
-	if(off != -1 && off < MAX_PARTICLE) {
-		e->p[off].type = type;
-		e->p[off].vpos = vpos;
-		e->p[off].dir = dir;
-	}
+    int off = get_off_particle(e);
+    if(off != -1 && off < MAX_PARTICLE) {
+        e->p[off].type = type;
+        e->p[off].vpos = vpos;
+        e->p[off].dir = dir;
+    }
 }
