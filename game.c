@@ -135,41 +135,86 @@ static void rls() {
     cleanup_all_timers();
 
     Uint8 i = 0, z = 0;
-    
-    for( i = 0; img_str[i] != 0; i++)
-        SDL_FreeSurface(gfx[i]);
-    
-        for( i = 0; hstr[i] != 0; i++)
-        SDL_FreeSurface(hgfx[i]);
-    
-        for ( i = 0; ev[i] != 0; i++)
-        for(z = 0; z < 10; z++)
-            SDL_FreeSurface(evil_gfx[i].gfx[z]);
-    
-    for(i = 0; i < COLLECT_NUM; i++)
-        SDL_FreeSurface(collect[i]);
+
+    for( i = 0; img_str[i] != 0; i++) {
+        if (gfx[i]) {
+            SDL_FreeSurface(gfx[i]);
+            gfx[i] = NULL;
+        }
+    }
+
+    for( i = 0; hstr[i] != 0; i++) {
+        if (hgfx[i]) {
+            SDL_FreeSurface(hgfx[i]);
+            hgfx[i] = NULL;
+        }
+    }
+
+    for (i = 0; ev[i] != 0; i++) {
+        for (z = 0; z < 10; z++) {
+            if (evil_gfx[i].gfx[z]) {
+                SDL_FreeSurface(evil_gfx[i].gfx[z]);
+                evil_gfx[i].gfx[z] = NULL;
+            }
+        }
+        evil_gfx[i].type = 0;
+    }
+
+    for(i = 0; i < COLLECT_NUM; i++) {
+        if (collect[i]) {
+            SDL_FreeSurface(collect[i]);
+            collect[i] = NULL;
+        }
+    }
+
+    for (i = 0; i < (sizeof(particles)/sizeof(particles[0])); i++) {
+        if (particles[i]) {
+            SDL_FreeSurface(particles[i]);
+            particles[i] = NULL;
+        }
+    }
 
 
-    SDL_DestroyRenderer(renderer);
-    SDL_FreeSurface(front);
-    SDL_DestroyTexture(tex);
-    SDL_DestroyWindow(window);
-    SDL_FreeSurface(bg);
-    SDL_FreeSurface(particles[0]);
-    SDL_FreeSurface(lsd);
-    SDL_FreeSurface(logo);
-    SDL_FreeFont(cfont);
-    SDL_FreeFont(font);
-    release_level(level);
+    if (bg) { SDL_FreeSurface(bg); bg = NULL; }
+    if (lsd) { SDL_FreeSurface(lsd); lsd = NULL; }
+    if (logo) { SDL_FreeSurface(logo); logo = NULL; }
+
 #ifdef HAS_MIXER
-    Mix_FreeChunk(fire_snd);
-    Mix_FreeChunk(collect_snd);
-    Mix_FreeChunk(intro_snd);
-    Mix_FreeChunk(kill_snd);
+    if (fire_snd) { Mix_FreeChunk(fire_snd); fire_snd = NULL; }
+    if (collect_snd) { Mix_FreeChunk(collect_snd); collect_snd = NULL; }
+    if (intro_snd) { Mix_FreeChunk(intro_snd); intro_snd = NULL; }
+    if (kill_snd) { Mix_FreeChunk(kill_snd); kill_snd = NULL; }
+    if (game_track) { Mix_FreeMusic(game_track); game_track = NULL; }
+
     Mix_HaltMusic();
     Mix_CloseAudio();
     Mix_Quit();
 #endif
+
+    if (cfont) { SDL_FreeFont(cfont); cfont = NULL; }
+    if (font)  { SDL_FreeFont(font);  font  = NULL; }
+
+    if (level) {
+        release_level(level);
+        level = NULL;
+    }
+
+    if (tex) {
+        SDL_DestroyTexture(tex);
+        tex = NULL;
+    }
+    if (renderer) {
+        SDL_DestroyRenderer(renderer);
+        renderer = NULL;
+    }
+    if (front) {
+        SDL_FreeSurface(front);
+        front = NULL;
+    }
+    if (window) {
+        SDL_DestroyWindow(window);
+        window = NULL;
+    }
 }
 static void render() {
     switch(cur_scr) {
@@ -206,7 +251,7 @@ void eventPump() {
     SDL_LockTexture(tex, 0, &front->pixels, &front->pitch);
     render();
     SDL_UnlockTexture(tex);
-    if(SDL_PollEvent(&e)) {
+    while(SDL_PollEvent(&e)) {
         handleInputEvent(&e);
         switch(e.type) {
             case SDL_QUIT:
@@ -232,7 +277,6 @@ void eventPump() {
             if(stick != NULL)
                 printf("smx: Sucessfully initalied Joystick\n");
         break;
-
         case SDL_JOYDEVICEREMOVED:
             SDL_JoystickClose(stick);
             stick = NULL;
@@ -240,12 +284,11 @@ void eventPump() {
             break;
         }
    }
-        
-    SDL_Rect dst = { 0, 0, WIDTH, HEIGHT };
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, tex, 0, &dst);
-    SDL_RenderPresent(renderer);
-    SDL_Delay(10);
+   SDL_Rect dst = { 0, 0, WIDTH, HEIGHT };
+   SDL_RenderClear(renderer);
+   SDL_RenderCopy(renderer, tex, 0, &dst);
+   SDL_RenderPresent(renderer);
+   SDL_Delay(10);
 }
 
 #ifdef FOR_XBOX_OPENXDK
