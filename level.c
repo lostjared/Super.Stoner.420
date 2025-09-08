@@ -13,13 +13,13 @@ static int shoot_ani = 0;
 static Uint32 last_fire_ticks = 0;
 
 static int tile_solid_safe(int idx) {
-    if (!level || !level->tiles) return 1; 
+    if (!level) return 1;
     if (idx < 0 || idx >= MAX_TILE) return 1;
     return level->tiles[idx].solid ? 1 : 0;
 }
 
 static int tile_block_safe(int idx) {
-    if (!level || !level->tiles) return -1;
+    if (!level) return -1;
     if (idx < 0 || idx >= MAX_TILE) return -1;
     return level->tiles[idx].block;
 }
@@ -110,7 +110,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
     if (bg && surf) SDL_BlitSurface(bg, 0, surf, 0);
 #endif
     logic();
-    if (!lvl || !lvl->tiles) return;
+    if (!lvl) return;
     for(i = 0; i < 700-4+24; i++)
     {
         int idx = offset + (int)i;
@@ -180,55 +180,52 @@ void render_map(SDL_Surface *surf, Level *lvl) {
 			Uint8 pos = 0;
 			for(pos = 0; pos < MAX_PARTICLE; pos++) {
 				if(pos < MAX_PARTICLE && emiter.p[pos].type != 0 && emiter.p[pos].vpos == (int)i+offset) {
-					if (particles && particles[0]) {
-						SDL_Rect rcX = { bx, by, particles[0]->w, particles[0]->h };
-						SDL_SetColorKey(particles[0], SDL_TRUE, SDL_MapRGB(particles[0]->format, 255, 255, 255));
-						SDL_BlitSurface(particles[0], 0, surf, &rcX );
-						emiter.p[pos].x = bx; emiter.p[pos].y = by;
-					}
+                    if (particles[0]) {
+                        SDL_Rect rcX = { bx, by, particles[0]->w, particles[0]->h };
+                        SDL_SetColorKey(particles[0], SDL_TRUE, SDL_MapRGB(particles[0]->format, 255, 255, 255));
+                        SDL_BlitSurface(particles[0], 0, surf, &rcX );
+                        emiter.p[pos].x = bx; emiter.p[pos].y = by;
+                    }
 				}
 			}
 			for(pos = 0; pos < 50; pos++) {
 				if(pos < 50 && evil[pos].type != -1 && evil[pos].vpos == (int)i+offset) {
-					
-					if(evil[pos].egfx && evil[pos].egfx->gfx && evil[pos].cur_ani >= 0) {
-					
-						int ani = evil[pos].cur_ani;
-						if (evil[pos].egfx->gfx[ani]) {
-							SDL_Rect erc = { 0,  0, evil[pos].egfx->gfx[ani]->w-1, evil[pos].egfx->gfx[ani]->h };
-							SDL_Rect prc = { bx, by, evil[pos].egfx->gfx[ani]->w, evil[pos].egfx->gfx[ani]->h };
-							if(evil[pos].dir == 1) {
-								SDL_SetColorKey(evil[pos].egfx->gfx[ani], SDL_TRUE, SDL_MapRGB(evil[pos].egfx->gfx[ani]->format, 255, 255, 255));
-								SDL_BlitSurface(evil[pos].egfx->gfx[ani], 0, surf, &prc);
-							} else {
-								SDL_ReverseBlt(evil[pos].egfx->gfx[ani], &erc, surf, &prc, SDL_MapRGB(evil[pos].egfx->gfx[ani]->format, 255, 255, 255));
-							}
-							evil[pos].x = bx; evil[pos].y = by;
-						}
-					}
-				}
-				if(pos < 50 && level->items[pos].type != 0 && level->items[pos].vpos == (int)i+offset) {
-					int t = level->items[pos].type;
-					if (collect && collect_index_valid(t)) {
-						SDL_Rect rc = { bx, by, collect[t]->w, collect[t]->h };
-						SDL_SetColorKey(collect[t], SDL_TRUE, SDL_MapRGB(collect[t]->format, 255, 255, 255));
-						SDL_BlitSurface(collect[t], 0, surf, &rc);
-					}
-				}
-			}
-		}
-		by = by + 16;
-		gcount++;
-		if(gcount > 23) {
-			gcount = 0;
-			by = startby;
-			bx = bx + 16;
-		}
-	}
+                    if(evil[pos].egfx && evil[pos].cur_ani >= 0 && evil[pos].cur_ani < 8) {
+                        int ani = evil[pos].cur_ani;
+                        if (evil[pos].egfx->gfx[ani]) {
+                            SDL_Rect erc = { 0,  0, evil[pos].egfx->gfx[ani]->w-1, evil[pos].egfx->gfx[ani]->h };
+                            SDL_Rect prc = { bx, by, evil[pos].egfx->gfx[ani]->w, evil[pos].egfx->gfx[ani]->h };
+                            if(evil[pos].dir == 1) {
+                                SDL_SetColorKey(evil[pos].egfx->gfx[ani], SDL_TRUE, SDL_MapRGB(evil[pos].egfx->gfx[ani]->format, 255, 255, 255));
+                                SDL_BlitSurface(evil[pos].egfx->gfx[ani], 0, surf, &prc);
+                            } else {
+                                SDL_ReverseBlt(evil[pos].egfx->gfx[ani], &erc, surf, &prc, SDL_MapRGB(evil[pos].egfx->gfx[ani]->format, 255, 255, 255));
+                            }
+                            evil[pos].x = bx; evil[pos].y = by;
+                        }
+                    }
+                }
+                if(pos < 50 && level->items[pos].type != 0 && level->items[pos].vpos == (int)i+offset) {
+                    int t = level->items[pos].type;
+                    if (collect_index_valid(t)) {
+                        SDL_Rect rc = { bx, by, collect[t]->w, collect[t]->h };
+                        SDL_SetColorKey(collect[t], SDL_TRUE, SDL_MapRGB(collect[t]->format, 255, 255, 255));
+                        SDL_BlitSurface(collect[t], 0, surf, &rc);
+                    }
+                }
+            }
+        }
+        by = by + 16;
+        gcount++;
+        if(gcount > 23) {
+            gcount = 0;
+            by = startby;
+            bx = bx + 16;
+        }
+    }
 
-    
     int hero_idx = hero.hpos + offset;
-    if(hero_idx >= 0 && hero_idx < MAX_TILE && level && level->tiles) {
+    if(hero_idx >= 0 && hero_idx < MAX_TILE && level) {
         if(level->tiles[hero_idx].block == 14) {
             reload_level();
         }
@@ -248,7 +245,7 @@ void scroll_right() {
 }
 
 static void move_left() {
-    if(!level || !level->tiles) {
+    if(!level) {
         printf("Warning: Null level or tiles in move_left\n");
         return;
     }
@@ -283,7 +280,7 @@ static void move_left() {
 }
 
 static void move_right() {
-    if(!level || !level->tiles) {
+    if(!level) {
         printf("Warning: Null level or tiles in move_right\n");
         return;
     }
@@ -324,8 +321,8 @@ static void rls_bullet() {
         return; 
     }
     last_fire_ticks = now;
-    
-    if (level == NULL || !level->tiles) {
+
+    if (level == NULL) {
         return;
     }
     
@@ -498,7 +495,7 @@ void proc_particles(Emiter *e) {
     unsigned int i = 0;
     static int lost_focus[50] = {0};
     
-    if(!e || !level || !level->tiles) {
+    if(!e || !level) {
         printf("Warning: Invalid parameters in proc_particles\n");
         return;
     }
@@ -607,10 +604,10 @@ void proc_particles(Emiter *e) {
                 int vertical_pixel_distance = abs(hero.y - evil[i].y);    
                 if(vertical_pixel_distance < 32) 
                 {
-                    if(evil[i].egfx && evil[i].egfx->gfx && 
-                       evil[i].cur_ani >= 0 && evil[i].cur_ani < 8 && 
-                       evil[i].egfx->gfx[evil[i].cur_ani] && 
-                       hero.cur_ani >= 0 && hero.cur_ani < (int)(sizeof(hgfx)/sizeof(hgfx[0])) && 
+                    if(evil[i].egfx &&
+                       evil[i].cur_ani >= 0 && evil[i].cur_ani < 8 &&
+                       evil[i].egfx->gfx[evil[i].cur_ani] &&
+                       hero.cur_ani >= 0 && hero.cur_ani < (int)(sizeof(hgfx)/sizeof(hgfx[0])) &&
                        hgfx[hero.cur_ani]) {
                         
                         SDL_Rect rcY = { evil[i].x + 2, evil[i].y + 2, evil[i].egfx->gfx[evil[i].cur_ani]->w - 4, evil[i].egfx->gfx[evil[i].cur_ani]->h - 4 };
@@ -622,17 +619,17 @@ void proc_particles(Emiter *e) {
                     }
                 }
             }
-            
+
             {
                 Uint8 p = 0;
                 for(; p < MAX_PARTICLE; p++) {
                     if(e->p[p].type != 0) {
                         if(e->p[p].x > 0 && e->p[p].y > 0 && e->p[p].x < 640 && e->p[p].y < 480 && 
                            evil[i].x > 0 && evil[i].y > 0 && evil[i].x < 640 && evil[i].y < 480 &&
-                           particles != NULL && particles[0] != NULL) {
+                           particles[0] != NULL) {
                             
-                            if(evil[i].egfx && evil[i].egfx->gfx && 
-                               evil[i].cur_ani >= 0 && evil[i].cur_ani < 8 && 
+                            if(evil[i].egfx &&
+                               evil[i].cur_ani >= 0 && evil[i].cur_ani < 8 &&
                                evil[i].egfx->gfx[evil[i].cur_ani]) {
                                 
                                 SDL_Rect rcX = { e->p[p].x, e->p[p].y, particles[0]->w, particles[0]->h };
