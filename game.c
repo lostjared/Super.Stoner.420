@@ -1149,7 +1149,9 @@ void eventPump() {
                             cleanup_all_timers();
                             cur_scr = ID_START;
                         } else {
+#ifndef __EMSCRIPTEN__
                             active = 0;
+#endif
                         }
                         break;
                     case SDLK_LEFT:
@@ -1173,14 +1175,16 @@ void eventPump() {
             }
             break;
         case SDL_CONTROLLERBUTTONDOWN:
-            if (e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK ||
-                e.cbutton.button == SDL_CONTROLLER_BUTTON_B) {
+            if (e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK) {
                 reset_collect_shader_effect();
                 if (cur_scr != ID_START) {
                     cleanup_all_timers();
                     cur_scr = ID_START;
+                    check_in = SDL_AddTimer(225, check_start_in, 0);
                 } else {
+#ifndef __EMSCRIPTEN__
                     active = 0;
+#endif
                 }
             } else if (e.cbutton.button == SDL_CONTROLLER_BUTTON_START && cur_scr == ID_GAME) {
                 cur_scr = ID_PAUSED;
