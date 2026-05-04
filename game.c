@@ -1,7 +1,9 @@
 #ifdef __EMSCRIPTEN__
 #include<emscripten/emscripten.h>
+#include<GLES3/gl3.h>
+#else
+#include "glad/glad.h"
 #endif
-#include <GLES3/gl3.h>
 #include <time.h>
 #include <math.h>
 #include "level.h"
@@ -999,6 +1001,16 @@ int main(int argc, char **argv) {
         SDL_Quit();
         exit(-1);
     }
+
+#ifndef __EMSCRIPTEN__
+    if (!gladLoadGLES2Loader((GLADloadproc)SDL_GL_GetProcAddress)) {
+        fprintf(stderr, "Error initializing GLAD\n");
+        SDL_GL_DeleteContext(gl_ctx);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return EXIT_FAILURE;
+    }
+#endif
 
     if (SDL_GL_SetSwapInterval(1) < 0) {
         fprintf(stderr, "Warning: could not enable vsync: %s\n", SDL_GetError());
