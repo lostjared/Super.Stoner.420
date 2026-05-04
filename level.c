@@ -227,6 +227,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
     int hero_idx = hero.hpos + offset;
     if(hero_idx >= 0 && hero_idx < MAX_TILE && level) {
         if(level->tiles[hero_idx].block == 14) {
+            reset_collect_shader_effect();
             reload_level();
         }
     }
