@@ -1,0 +1,2 @@
+// SuperStoner420 Windows Resource File
+IDI_ICON1 ICON "@CMAKE_SOURCE_DIR@/icon.ico"
