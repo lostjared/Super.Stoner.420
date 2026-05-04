@@ -173,11 +173,33 @@ static void init() {
   }
   bg = SDL_LoadBMP(get_path("D:\\", "img/bg.bmp"));
 #ifdef HAS_MIXER
-  Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096);
-  intro_snd = Mix_LoadWAV(get_path("D:\\", "snd/open.wav"));
-  collect_snd = Mix_LoadWAV(get_path("D:\\", "snd/line.wav"));
-  fire_snd = Mix_LoadWAV(get_path("D:\\", "snd/fire.wav"));
-  kill_snd = Mix_LoadWAV(get_path("D:\\", "snd/scream.wav"));
+  int mix_init_flags = 0;
+  const char *track_path = 0;
+#ifdef __EMSCRIPTEN__
+  mix_init_flags = MIX_INIT_OGG;
+  track_path = "snd/soundtrack.ogg";
+#else
+  mix_init_flags = MIX_INIT_MP3;
+  track_path = "snd/soundtrack.mp3";
+#endif
+
+  if ((Mix_Init(mix_init_flags) & mix_init_flags) != mix_init_flags)
+    fprintf(stderr, "SDL_mixer codec support unavailable: %s\n", Mix_GetError());
+
+  if (Mix_OpenAudio(MIX_DEFAULT_FREQUENCY, MIX_DEFAULT_FORMAT, 2, 4096) < 0) {
+    fprintf(stderr, "SDL_mixer audio open failed: %s\n", Mix_GetError());
+  } else {
+    intro_snd = Mix_LoadWAV(get_path("D:\\", "snd/open.wav"));
+    collect_snd = Mix_LoadWAV(get_path("D:\\", "snd/line.wav"));
+    fire_snd = Mix_LoadWAV(get_path("D:\\", "snd/fire.wav"));
+    kill_snd = Mix_LoadWAV(get_path("D:\\", "snd/scream.wav"));
+    game_track = Mix_LoadMUS(get_path("D:\\", track_path));
+    if (!game_track)
+      fprintf(stderr, "Failed to load soundtrack %s: %s\n", track_path,
+              Mix_GetError());
+    else if (Mix_PlayMusic(game_track, -1) < 0)
+      fprintf(stderr, "Failed to play soundtrack in loop: %s\n", Mix_GetError());
+  }
 #endif
 #ifdef HAS_MIXER
   if (intro_snd != 0)
@@ -1294,16 +1316,18 @@ void eventPump() {
 int main(int argc, char **argv) {
   Uint32 mode = 0;
   SDL_Surface *ico = 0;
+  SDL_DisplayMode display_mode;
   int full = 0;
+  int argi = 0;
 
-  if (argc == 4 && strcmp(argv[1], "--size") == 0) {
-    WIDTH = atoi(argv[2]);
-    HEIGHT = atoi(argv[3]);
-  }
-  if (argc == 4 && strcmp(argv[1], "--full") == 0) {
-    full = 1;
-    WIDTH = atoi(argv[2]);
-    HEIGHT = atoi(argv[3]);
+  for (argi = 1; argi < argc; argi++) {
+    if (strcmp(argv[argi], "--full") == 0) {
+      full = 1;
+    } else if (strcmp(argv[argi], "--size") == 0 && argi + 2 < argc) {
+      WIDTH = atoi(argv[argi + 1]);
+      HEIGHT = atoi(argv[argi + 2]);
+      argi += 2;
+    }
   }
 
 #ifdef DEFAULT_FULL
@@ -1326,10 +1350,18 @@ int main(int argc, char **argv) {
     SDL_Quit();
     return EXIT_FAILURE;
   }
-  if (full == 1)
+
+  if (full == 1) {
+    if (SDL_GetCurrentDisplayMode(0, &display_mode) == 0) {
+      WIDTH = display_mode.w;
+      HEIGHT = display_mode.h;
+    } else {
+      fprintf(stderr, "Warning: could not query current display mode: %s\n",
+              SDL_GetError());
+    }
     mode = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE |
            SDL_WINDOW_FULLSCREEN_DESKTOP;
-  else
+  } else
     mode = SDL_WINDOW_SHOWN | SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
 
   if (SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK,

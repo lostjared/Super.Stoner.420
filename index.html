@@ -216,8 +216,12 @@
       })(),
       onRuntimeInitialized: function() {
         console.log("Emscripten app is ready.");
-        // Resize after runtime has initialized.
+        // Resize after runtime has initialized; do it a couple of times to
+        // catch late layout changes (e.g. Android URL bar collapsing).
         resizeCanvas();
+        requestAnimationFrame(resizeCanvas);
+        setTimeout(resizeCanvas, 200);
+        setTimeout(resizeCanvas, 600);
         focusGameCanvas();
       }
     };
@@ -230,8 +234,11 @@
       var canvas = Module.canvas;
       var overlay = document.getElementById('gamepad-overlay');
       var aspect = 4 / 3;
-      var windowWidth = window.innerWidth;
-      var windowHeight = window.innerHeight;
+      // Prefer visualViewport on mobile; it accounts for the URL bar / pinch zoom
+      // and is reliable on Chrome for Android even on first paint.
+      var vv = window.visualViewport;
+      var windowWidth = vv ? Math.round(vv.width) : window.innerWidth;
+      var windowHeight = vv ? Math.round(vv.height) : window.innerHeight;
       var isMobile = mobileRegex.test(navigator.userAgent);
       var isLandscape = windowWidth > windowHeight;
       var showControls = isMobile && isLandscape;
@@ -264,11 +271,31 @@
       }
     }
 
+    // Schedule resizes around layout/URL-bar settling. Android Chrome often
+    // reports an incorrect viewport on the first paint until the address bar
+    // animation finishes, so run a few staggered resizes.
+    function scheduleLayoutSettle() {
+      requestAnimationFrame(function() {
+        resizeCanvas();
+        requestAnimationFrame(resizeCanvas);
+      });
+      setTimeout(resizeCanvas, 100);
+      setTimeout(resizeCanvas, 350);
+      setTimeout(resizeCanvas, 800);
+    }
+
     // Add an event listener to resize the canvas when the window is resized.
     window.addEventListener('resize', resizeCanvas);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', resizeCanvas);
+      window.visualViewport.addEventListener('scroll', resizeCanvas);
+    }
+    document.addEventListener('DOMContentLoaded', scheduleLayoutSettle);
     window.addEventListener('load', function() {
       focusGameCanvas();
+      scheduleLayoutSettle();
     });
+    window.addEventListener('pageshow', scheduleLayoutSettle);
 
     // ── Mobile Gamepad Logic ──
     (function() {
@@ -285,10 +312,19 @@
       }
 
       window.addEventListener('resize', checkLandscape);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', checkLandscape);
+      }
       window.addEventListener('orientationchange', function() {
         setTimeout(checkLandscape, 150);
+        setTimeout(checkLandscape, 500);
       });
       checkLandscape();
+      // Re-run after layout has settled (Android URL bar collapse, etc.)
+      requestAnimationFrame(checkLandscape);
+      setTimeout(checkLandscape, 100);
+      setTimeout(checkLandscape, 400);
+      setTimeout(checkLandscape, 900);
 
       // Map of key strings → KeyboardEvent key codes
       var keyCodeMap = {
