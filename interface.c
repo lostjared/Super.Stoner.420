@@ -9,6 +9,34 @@ SDL_TimerID check_start = 0;
 extern SDL_TimerID check_in;
 SDL_TimerID proc_game;
 
+void cleanup_all_timers();
+
+static void activate_menu_selection(void) {
+	switch(menu_level) {
+		case 0:
+			switch(cl_pos) {
+				case 0:
+					menu_level = 1;
+					cl2_pos = 0;
+					break;
+				case 1:
+					cur_scr = ID_CREDITS;
+					break;
+				case 2:
+					active = 0;
+					break;
+			}
+			break;
+		case 1:
+			cur_levels = cl2_pos;
+			cur_level = 0;
+			menu_level = 0;
+			cleanup_all_timers();
+			reload_level();
+			break;
+	}
+}
+
 void cleanup_all_timers() {
     
     if(check_start != 0) {
@@ -49,34 +77,10 @@ Uint32 check_start_in(Uint32 i, void *v) {
 		if(menu_level == 1 && cl2_pos < 1)
 			cl2_pos++;
 	}
-	else if(controller_button(SDL_CONTROLLER_BUTTON_A)) {
-		switch(menu_level) {
-			case 0:
-		switch(cl_pos) {
-			case 0:
-				menu_level = 1;
-				cl2_pos = 0;
-				break;
-			case 1:
-				cur_scr = ID_CREDITS;
-				break;
-			case 2:
-				{		active = 0;
-				}
-				break;
-			}
-			break;
-		case 1:
-			{
-					cur_levels = cl2_pos;
-					cur_level = 0;
-					menu_level = 0;
-					cleanup_all_timers(); 
-					reload_level();
-					return 0;
-			}
-			break;
-		}
+	else if(controller_button(SDL_CONTROLLER_BUTTON_A) || controller_button(SDL_CONTROLLER_BUTTON_START)) {
+		activate_menu_selection();
+		if (menu_level == 0 && cur_scr != ID_CREDITS)
+			return 0;
 	}
 	return i;
 }
@@ -101,34 +105,29 @@ void handleInput(SDL_Event  *e) {
 						cl2_pos++;
 					break;
 				case SDLK_SPACE:
-					switch(menu_level) {
-						case 0:
-							switch(cl_pos) {
-								case 0:
-									menu_level = 1;
-									cl2_pos = 0;
-									break;
-								case 1:
-									cur_scr = ID_CREDITS;
-									break;
-								case 2:
-									{		active = 0;
-									}
-									break;
-							}
-							break;
-						case 1:
-							{
-								cur_levels = cl2_pos;
-								cur_level = 0;
-								menu_level = 0;
-								cleanup_all_timers(); 
-							    reload_level();
-
-								return ;
-							}
-							break;
-					}
+					activate_menu_selection();
+					return;
+					break;
+			}
+			break;
+		case SDL_CONTROLLERBUTTONDOWN:
+			switch(e->cbutton.button) {
+				case SDL_CONTROLLER_BUTTON_DPAD_UP:
+					if(menu_level == 0 && cl_pos > 0)
+						cl_pos--;
+					if(menu_level == 1 && cl2_pos > 0)
+						cl2_pos--;
+					break;
+				case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+					if(menu_level == 0 && cl_pos < 2)
+						cl_pos++;
+					if(menu_level == 1 && cl2_pos < 1)
+						cl2_pos++;
+					break;
+				case SDL_CONTROLLER_BUTTON_A:
+					activate_menu_selection();
+					return;
+				default:
 					break;
 			}
 			break;
@@ -176,7 +175,7 @@ void render_start() {
 
 void check_enter_in() {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
-	if(keys[SDL_SCANCODE_RETURN] || controller_button(SDL_CONTROLLER_BUTTON_START) || controller_button(SDL_CONTROLLER_BUTTON_A))
+	if(keys[SDL_SCANCODE_RETURN] || controller_button(SDL_CONTROLLER_BUTTON_START))
 	{        
         cleanup_all_timers();
         cur_scr = ID_GAME;   
@@ -213,8 +212,7 @@ static void credits_in() {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
 	if(keys[SDL_SCANCODE_RETURN] ||
        controller_button(SDL_CONTROLLER_BUTTON_B) ||
-       controller_button(SDL_CONTROLLER_BUTTON_BACK) ||
-       controller_button(SDL_CONTROLLER_BUTTON_A)) {
+       controller_button(SDL_CONTROLLER_BUTTON_BACK)) {
 		reset_collect_shader_effect();
 		cur_scr = ID_START;
 	}
