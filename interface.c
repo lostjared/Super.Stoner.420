@@ -1,4 +1,4 @@
-#include "SDL_mxf.h"
+#include "text_render.h"
 #include "smx.h"
 #include "level.h"
 #include<math.h>
@@ -87,10 +87,7 @@ void handleInput(SDL_Event  *e) {
 		case SDL_KEYDOWN:
 			switch(e->key.keysym.sym) {
 				case SDLK_ESCAPE:
-					if(menu_level == 0)
-						menu_level = 1;
-					else
-						menu_level = 0;
+					active = 0;
 					break;
 				case SDLK_UP:
 					if(menu_level == 0 && cl_pos > 0)
@@ -230,9 +227,9 @@ void render_credits() {
 	credits_in();
 	if(cur_scr == ID_START)
 		return;
-	buf = lock(front, front->format->BitsPerPixel);
-	buf2 = lock(logo, front->format->BitsPerPixel);
-	buf3 = lock(bg,   front->format->BitsPerPixel);
+	buf = lock(front);
+	buf2 = lock(logo);
+	buf3 = lock(bg);
 	for(i = 0; i < front->w; i++) {
 		for(z = 0; z < front->h; z++) {
 			SDL_Color col1, col2;
@@ -263,7 +260,7 @@ void render_credits() {
 			SDL_SetColorKey(evil_gfx[0].gfx[0], SDL_TRUE, evil_key);
 			SDL_ReverseBlt(evil_gfx[0].gfx[0], &rcY, front, &rcZ, evil_key);
 		}
-		SDL_PrintText(front, font, 170, 360, SDL_MapRGB(front->format, 255, 255, 255), "Super Stoner 420 - LostSideDead");
-		SDL_PrintText(front, cfont, 170, 380, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "\"Open Source, Open Mind\"");
+		SDL_PrintText(front, font, 170, 310, SDL_MapRGB(front->format, 255, 255, 255), "Super Stoner 420 - LostSideDead");
+		SDL_PrintText(front, cfont, 170, 340, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "\"Open Source, Open Mind\"");
 	}
 }

@@ -1,5 +1,5 @@
-#include "SDL_mxf.h"
-void *lock(SDL_Surface *surf, Uint8 type) {
+#include "text_render.h"
+void *lock(SDL_Surface *surf) {
 	if(SDL_MUSTLOCK(surf)) {
 		if(SDL_LockSurface(surf) < 0)
 			return 0;

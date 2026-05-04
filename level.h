@@ -1,6 +1,6 @@
 #ifndef LEVEL_H__
 #define LEVEL_H__
-#include"SDL_mxf.h"
+#include "text_render.h"
 #include<stdio.h>
 #define MAX_TILE 8000
 typedef struct _Level

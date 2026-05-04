@@ -1,6 +1,6 @@
 #ifndef __SMX__H_
 #define __SMX__H_
-#include"SDL_mxf.h"
+#include "text_render.h"
 #include<stdio.h>
 #include<stdlib.h>
 #include<string.h>

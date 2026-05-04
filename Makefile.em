@@ -1,8 +1,8 @@
 SDL_PATH=/opt/local
 CXX=em++
 CC=emcc
-CFLAGS=  -I./includes -s USE_SDL=2 -s USE_SDL_MIXER=2 -I. -DHAS_MIXER
-LDFLAGS= -s USE_SDL=2 -s USE_SDL_MIXER=2 -s FULL_ES3=1 --preload-file assets
+CFLAGS=  -I./includes -s USE_SDL=2 -s USE_SDL_MIXER=2 -s USE_SDL_TTF=2 -I. -DHAS_MIXER
+LDFLAGS= -s USE_SDL=2 -s USE_SDL_MIXER=2 -s USE_SDL_TTF=2 -s FULL_ES3=1 --preload-file assets
 CPP_FILES := $(wildcard *.c)
 OBJ_FILES := $(addprefix ,$(notdir $(CPP_FILES:.c=.o)))
 

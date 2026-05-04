@@ -1,6 +1,6 @@
 SDL_PATH=/opt/local
 CFLAGS=  -I./includes `sdl2-config --cflags` -I. -DHAS_MIXER
-LDFLAGS=`sdl2-config --libs` -lSDL2_mixer -lGLESv2 -lm
+LDFLAGS=`sdl2-config --libs` -lSDL2_mixer -lSDL2_ttf -lGLESv2 -lm
 CPP_FILES := $(wildcard *.c)
 OBJ_FILES := $(addprefix ,$(notdir $(CPP_FILES:.c=.o)))
 

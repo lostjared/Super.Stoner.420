@@ -76,8 +76,8 @@ void init_game() {
 
 static void init() {
     Uint8 i = 0;
-    font = SDL_InitFont(get_path("D:\\", "font/system.mxf"));
-    cfont = SDL_InitFont(get_path("D:\\", "font/e.mxf"));
+    font = SDL_InitFont(get_path("D:\\", "font/DejaVuSans.ttf"), 12);
+    cfont = SDL_InitFont(get_path("D:\\", "font/DejaVuSans.ttf"), 16);
     init_game();
     SDL_AddTimer(1000, intro_wait, 0);
     particles[0] = SDL_LoadBMP(get_path("D:\\", "img/shot.bmp"));
@@ -736,6 +736,9 @@ static void rls() {
 #endif
     if (cfont) { SDL_FreeFont(cfont); cfont = NULL; }
     if (font)  { SDL_FreeFont(font);  font  = NULL; }
+    if (TTF_WasInit()) {
+        TTF_Quit();
+    }
 
     if (level) {
         release_level(level);
@@ -832,7 +835,12 @@ void eventPump() {
             {
                 switch(e.key.keysym.sym) {
                     case SDLK_ESCAPE:
-                        active = 0;
+                        if (cur_scr != ID_START) {
+                            cleanup_all_timers();
+                            cur_scr = ID_START;
+                        } else {
+                            active = 0;
+                        }
                         break;
                     case SDLK_LEFT:
                         break;
@@ -852,6 +860,17 @@ void eventPump() {
             SDL_JoystickClose(stick);
             stick = NULL;
             printf("smx: Joystick closed..\n");
+            break;
+        case SDL_JOYBUTTONDOWN:
+            /* Treat common back/cancel buttons like Escape. */
+            if (e.jbutton.button == 6 || e.jbutton.button == 11) {
+                if (cur_scr != ID_START) {
+                    cleanup_all_timers();
+                    cur_scr = ID_START;
+                } else {
+                    active = 0;
+                }
+            }
             break;
         case SDL_WINDOWEVENT:
             if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
@@ -996,8 +1015,8 @@ int main(int argc, char **argv) {
 void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent) {
     void *buf , *buf2;
     int i,z,i2,z2;
-    buf = lock(surf, surf->format->BitsPerPixel);
-    buf2 = lock(front_surf, front_surf->format->BitsPerPixel);
+    buf = lock(surf);
+    buf2 = lock(front_surf);
     i2 = rc2->x;
     z2 = rc2->y;
     for(i = rc->w-1; i > 0; i--) {
