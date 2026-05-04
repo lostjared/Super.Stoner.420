@@ -3,6 +3,7 @@
 #endif
 #include <GLES3/gl3.h>
 #include <time.h>
+#include <math.h>
 #include "level.h"
 #include "smx.h"
 #ifdef HAS_MIXER
@@ -145,6 +146,7 @@ GLuint gl_tex = 0;
 GLint gl_fx_time_loc = -1;
 GLint gl_fx_resolution_loc = -1;
 GLint gl_fx_samp_loc = -1;
+GLint gl_fx_wobble_loc = -1;
 GLint gl_fx_type5_time_loc = -1;
 GLint gl_fx_type5_resolution_loc = -1;
 GLint gl_fx_type5_samp_loc = -1;
@@ -157,26 +159,48 @@ int viewport_y = 0;
 int viewport_w = GAME_WIDTH;
 int viewport_h = GAME_HEIGHT;
 Uint32 collect_fx_until_ticks = 0;
+Uint32 collect_fx_decay_end_ticks = 0;
 int active_collect_fx_type = 0;
 
-#define COLLECT_FX_DURATION_MS 8000U
+#define COLLECT_FX_DURATION_MS      8000U
+#define COLLECT_FX_DECAY_MS         3000U
+#define COLLECT_FX_WOBBLE_BASE      0.012f
+#define COLLECT_FX_WOBBLE_INCREMENT 0.008f
+#define COLLECT_FX_WOBBLE_MAX       0.072f
+
+float collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE;
 
 void activate_collect_shader_effect(int item_type) {
-    collect_fx_until_ticks = SDL_GetTicks() + COLLECT_FX_DURATION_MS;
+    int new_type = 0;
     if (item_type == 4) {
-        active_collect_fx_type = 5;
+        new_type = 5;
     } else if (item_type == 1) {
-        active_collect_fx_type = 2;
+        new_type = 2;
     } else if (item_type == 5) {
-        active_collect_fx_type = 3;
+        new_type = 3;
     } else if (item_type >= 2 && item_type <= 3) {
-        active_collect_fx_type = 1;
+        new_type = 1;
     }
+    if (new_type == 0)
+        return;
+    /* accumulate wobble intensity when collecting the same wobble-type item */
+    if (new_type == 1 && active_collect_fx_type == 1) {
+        collect_fx_wobble_intensity += COLLECT_FX_WOBBLE_INCREMENT;
+        if (collect_fx_wobble_intensity > COLLECT_FX_WOBBLE_MAX)
+            collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_MAX;
+    } else {
+        collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE;
+    }
+    active_collect_fx_type = new_type;
+    collect_fx_until_ticks = SDL_GetTicks() + COLLECT_FX_DURATION_MS;
+    collect_fx_decay_end_ticks = collect_fx_until_ticks + COLLECT_FX_DECAY_MS;
 }
 
 void reset_collect_shader_effect() {
     collect_fx_until_ticks = 0;
+    collect_fx_decay_end_ticks = 0;
     active_collect_fx_type = 0;
+    collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE;
 }
 
 static GLuint compile_shader(GLenum shader_type, const char *src) {
@@ -254,6 +278,7 @@ static int init_gl_renderer() {
         "uniform sampler2D samp;\n"
         "uniform float time_f;\n"
         "uniform vec2 iResolution;\n"
+        "uniform float wobble_intensity;\n"
         "vec3 hueRotate(vec3 c, float a) {\n"
         "  const mat3 toYIQ = mat3(\n"
         "    0.299, 0.596, 0.211,\n"
@@ -272,8 +297,8 @@ static int init_gl_renderer() {
         "}\n"
         "void main(void) {\n"
         "  vec2 uv = v_uv;\n"
-        "  uv.x += sin(uv.y * 14.0 + time_f * 1.7) * 0.012;\n"
-        "  uv.y += sin(uv.x * 11.0 + time_f * 1.3) * 0.012;\n"
+        "  uv.x += sin(uv.y * 14.0 + time_f * 1.7) * wobble_intensity;\n"
+        "  uv.y += sin(uv.x * 11.0 + time_f * 1.3) * wobble_intensity;\n"
         "  vec3 c = texture(samp, uv).rgb;\n"
         "  c = hueRotate(c, time_f * 0.8);\n"
         "  float lum = dot(c, vec3(0.299, 0.587, 0.114));\n"
@@ -548,6 +573,7 @@ static int init_gl_renderer() {
     }
     gl_fx_time_loc = glGetUniformLocation(gl_fx_program, "time_f");
     gl_fx_resolution_loc = glGetUniformLocation(gl_fx_program, "iResolution");
+    gl_fx_wobble_loc = glGetUniformLocation(gl_fx_program, "wobble_intensity");
 
     glUseProgram(gl_fx_type5_program);
     gl_fx_type5_samp_loc = glGetUniformLocation(gl_fx_type5_program, "samp");
@@ -602,6 +628,7 @@ static void update_viewport() {
 
 static void present_frame() {
     GLuint active_program = gl_program;
+    float wobble_to_upload = collect_fx_wobble_intensity;
     struct timespec ts;
     float wallclock_seconds = 0.0f;
 
@@ -612,18 +639,41 @@ static void present_frame() {
     glBindTexture(GL_TEXTURE_2D, gl_tex);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, front->w, front->h, GL_RGBA, GL_UNSIGNED_BYTE, front->pixels);
 
-    if ((Sint32)(collect_fx_until_ticks - SDL_GetTicks()) > 0) {
-        if (active_collect_fx_type == 5) {
-            active_program = gl_fx_type5_program;
-        } else if (active_collect_fx_type == 2) {
-            active_program = gl_fx_type0_program;
-        } else if (active_collect_fx_type == 3) {
-            active_program = gl_fx_item5_program;
-        } else {
-            active_program = gl_fx_program;
+    {
+        Uint32 now = SDL_GetTicks();
+        /* compute effective wobble for the decay phase */
+        if (active_collect_fx_type == 1 &&
+            (Sint32)(collect_fx_until_ticks - now) <= 0 &&
+            (Sint32)(collect_fx_decay_end_ticks - now) > 0) {
+            float t = (float)(Sint32)(collect_fx_decay_end_ticks - now)
+                      / (float)COLLECT_FX_DECAY_MS;
+            collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE
+                + t * (collect_fx_wobble_intensity - COLLECT_FX_WOBBLE_BASE);
+            if (collect_fx_wobble_intensity <= COLLECT_FX_WOBBLE_BASE + 0.0001f) {
+                reset_collect_shader_effect();
+            }
         }
-    } else {
-        active_collect_fx_type = 0;
+        if (cur_scr == ID_CREDITS) {
+            /* smooth ping-pong: base → 8× base → base, 6-second period */
+            float ct = (float)fmod(wallclock_seconds, 6.0) / 6.0f;
+            float cycle = 0.5f - 0.5f * cosf(ct * 6.28318530f);
+            wobble_to_upload = COLLECT_FX_WOBBLE_BASE * (1.0f + 7.0f * cycle);
+            active_program = gl_fx_program;
+        } else if (active_collect_fx_type != 0 &&
+                   ((Sint32)(collect_fx_until_ticks - now) > 0 ||
+                    (Sint32)(collect_fx_decay_end_ticks - now) > 0)) {
+            if (active_collect_fx_type == 5) {
+                active_program = gl_fx_type5_program;
+            } else if (active_collect_fx_type == 2) {
+                active_program = gl_fx_type0_program;
+            } else if (active_collect_fx_type == 3) {
+                active_program = gl_fx_item5_program;
+            } else {
+                active_program = gl_fx_program;
+            }
+        } else if (active_collect_fx_type != 0) {
+            reset_collect_shader_effect();
+        }
     }
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -640,6 +690,9 @@ static void present_frame() {
         }
         if (gl_fx_resolution_loc >= 0) {
             glUniform2f(gl_fx_resolution_loc, (float)viewport_w, (float)viewport_h);
+        }
+        if (gl_fx_wobble_loc >= 0) {
+            glUniform1f(gl_fx_wobble_loc, wobble_to_upload);
         }
     } else if (active_program == gl_fx_type5_program) {
         if (gl_fx_type5_samp_loc >= 0) {
@@ -835,6 +888,7 @@ void eventPump() {
             {
                 switch(e.key.keysym.sym) {
                     case SDLK_ESCAPE:
+                        reset_collect_shader_effect();
                         if (cur_scr != ID_START) {
                             cleanup_all_timers();
                             cur_scr = ID_START;
@@ -864,6 +918,7 @@ void eventPump() {
         case SDL_JOYBUTTONDOWN:
             /* Treat common back/cancel buttons like Escape. */
             if (e.jbutton.button == 6 || e.jbutton.button == 11) {
+                reset_collect_shader_effect();
                 if (cur_scr != ID_START) {
                     cleanup_all_timers();
                     cur_scr = ID_START;

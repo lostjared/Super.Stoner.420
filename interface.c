@@ -213,11 +213,13 @@ void render_enter_level() {
 static void credits_in() {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
 #ifdef FOR_PSP
-	if( SDL_JoystickGetButton(stick, 11) )
+	if( SDL_JoystickGetButton(stick, 11) ) {
 #else
-	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1))
+	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1)) {
 #endif
+		reset_collect_shader_effect();
 		cur_scr = ID_START;
+	}
 }
 
 void render_credits() {
