@@ -163,7 +163,7 @@
   </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
+  <canvas id="canvas" tabindex="0" aria-label="Super Stoner 420 game canvas"></canvas>
 
   <!-- Mobile gamepad overlay -->
   <div id="gamepad-overlay">
@@ -195,18 +195,29 @@
     var baseHeight = 1080;
     
     // Create the Module object used by Emscripten.
+    function focusGameCanvas() {
+      var canvas = document.getElementById('canvas');
+      if (canvas && document.activeElement !== canvas) {
+        canvas.focus();
+      }
+    }
+
     var Module = {
+      keyboardListeningElement: document,
       canvas: (function(){
         var canvas = document.getElementById('canvas');
         // Set the internal resolution of the canvas.
         canvas.width = baseWidth;
         canvas.height = baseHeight;
+        canvas.addEventListener('mousedown', focusGameCanvas);
+        canvas.addEventListener('touchstart', focusGameCanvas, { passive: true });
         return canvas;
       })(),
       onRuntimeInitialized: function() {
         console.log("Emscripten app is ready.");
         // Resize after runtime has initialized.
         resizeCanvas();
+        focusGameCanvas();
       }
     };
 
@@ -254,6 +265,9 @@
 
     // Add an event listener to resize the canvas when the window is resized.
     window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('load', function() {
+      focusGameCanvas();
+    });
 
     // ── Mobile Gamepad Logic ──
     (function() {
@@ -284,6 +298,7 @@
       function fireKey(type, key) {
         var code = keyCodeMap[key] || 0;
         var eventCode = key === ' ' ? 'Space' : (key.length === 1 ? 'Key' + key.toUpperCase() : key);
+        focusGameCanvas();
         var evt = new KeyboardEvent(type, {
           key: key,
           code: eventCode,
@@ -292,6 +307,7 @@
           bubbles: true,
           cancelable: true
         });
+        Module.canvas.dispatchEvent(evt);
         document.dispatchEvent(evt);
       }
 
@@ -326,3 +342,4 @@
   <script src="SuperStoner.js?v=1.3x"></script>
 </body>
 </html>
+

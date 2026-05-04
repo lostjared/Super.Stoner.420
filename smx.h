@@ -16,6 +16,8 @@ extern SDL_Joystick *stick;
 extern int score, lives;
 extern void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent);
 extern int SDL_Colide(SDL_Rect *rc, SDL_Rect *rc2);
+extern void activate_collect_shader_effect(int item_type);
+extern void reset_collect_shader_effect();
 extern void init_game();
 extern void game_over();
 extern void render_enter_level();

@@ -145,7 +145,7 @@ void render_start() {
 		SDL_Rect rc = { 50, 50, front->w-100, front->h-100 };
 		SDL_FillRect(front, &rc, 0);
 		if(menu_level == 0) {
-			SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "SuperMasterX-LostSideDead");
+			SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "Super Stoner 420-LostSideDead");
 			SDL_PrintText(front, font, 125, 175, SDL_MapRGB(front->format, 255, 255, 255), "Single Player ");
 			SDL_PrintText(front, font, 125, 175+50, SDL_MapRGB(front->format, 255, 0, 0), "Credits");
 			SDL_PrintText(front, font, 125, 175+100, SDL_MapRGB(front->format, 255, 255, 0), "Exit");
@@ -161,8 +161,8 @@ void render_start() {
 			}
 		}
 		else if(menu_level == 1) {
-			SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "SuperMasterX Play New Game");
-			SDL_PrintText(front, cfont, 125, 175, SDL_MapRGB(front->format, 255, 255, 255), "New SuperMasterX Levels");
+			SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "Super Stoner 420 Play New Game");
+			SDL_PrintText(front, cfont, 125, 175, SDL_MapRGB(front->format, 255, 255, 255), "New Super Stoner 420 Levels");
 			SDL_PrintText(front, cfont, 125, 175+50, SDL_MapRGB(front->format, 255, 0, 0), " Old SuperMaster2 Levels");
 			{
 				SDL_Rect rc = { 125, front->h-100-hgfx[0]->h , hgfx[0]->w, hgfx[0]->h };
@@ -259,9 +259,11 @@ void render_credits() {
 		{
 			SDL_Rect rcY = { 0, 0, evil_gfx[0].gfx[0]->w, evil_gfx[0].gfx[0]->h };
 			SDL_Rect rcZ = { 640-120-evil_gfx[0].gfx[0]->w, 315, evil_gfx[0].gfx[0]->w, evil_gfx[0].gfx[0]->h };
-			SDL_ReverseBlt(evil_gfx[0].gfx[0], &rcY, front, &rcZ, SDL_MapRGB(front->format, 255, 255, 255));
+			Uint32 evil_key = SDL_MapRGB(evil_gfx[0].gfx[0]->format, 255, 255, 255);
+			SDL_SetColorKey(evil_gfx[0].gfx[0], SDL_TRUE, evil_key);
+			SDL_ReverseBlt(evil_gfx[0].gfx[0], &rcY, front, &rcZ, evil_key);
 		}
-		SDL_PrintText(front, font, 170, 360, SDL_MapRGB(front->format, 255, 255, 255), "SuperMasterX - LostSideDead");
+		SDL_PrintText(front, font, 170, 360, SDL_MapRGB(front->format, 255, 255, 255), "Super Stoner 420 - LostSideDead");
 		SDL_PrintText(front, cfont, 170, 380, SDL_MapRGB(front->format, rand()%255, rand()%255, rand()%255), "\"Open Source, Open Mind\"");
 	}
 }

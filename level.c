@@ -383,6 +383,8 @@ static int check_input() {
 }
 static void collect_item(int type) {
 	score += 10*type;
+    printf("Collected item: %d\n", type);
+    activate_collect_shader_effect(type);
 	#ifdef HAS_MIXER
 	if(collect_snd != 0)
 	Mix_PlayChannel( -1, collect_snd, 0);
@@ -476,6 +478,7 @@ static void hero_die() {
 	offset = 0;
 	hero.hpos = level->start_pos;
 	memset(&emiter, 0, sizeof(emiter));
+	reset_collect_shader_effect();
 	{
 		unsigned int i = 0;
 		memset(evil, 0, sizeof(evil));
