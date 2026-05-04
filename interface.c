@@ -35,22 +35,21 @@ Uint32 intro_wait(Uint32 i, void *v) {
 
 
 Uint32 check_start_in(Uint32 i, void *v) {
-	int b = SDL_JoystickGetHat(stick, 0);
-	int axis = SDL_JoystickGetAxis(stick, 0);
-    int axis2 = SDL_JoystickGetAxis(stick, 1);
-	if(b & SDL_HAT_UP || axis2 < -8000)  {
+	int axis = controller_axis(SDL_CONTROLLER_AXIS_LEFTX);
+    int axis2 = controller_axis(SDL_CONTROLLER_AXIS_LEFTY);
+	if(controller_button(SDL_CONTROLLER_BUTTON_DPAD_UP) || axis2 < -8000)  {
 		if(menu_level == 0 && cl_pos > 0)
 			cl_pos--;
 		if(menu_level == 1 && cl2_pos > 0)
 			cl2_pos--;
 	}
-	else if(b & SDL_HAT_DOWN || axis2 > 8000) {
+	else if(controller_button(SDL_CONTROLLER_BUTTON_DPAD_DOWN) || axis2 > 8000) {
 		if(menu_level == 0 && cl_pos < 2)
 			cl_pos++;
 		if(menu_level == 1 && cl2_pos < 1)
 			cl2_pos++;
 	}
-	else if(SDL_JoystickGetButton(stick, 0)) {
+	else if(controller_button(SDL_CONTROLLER_BUTTON_A)) {
 		switch(menu_level) {
 			case 0:
 		switch(cl_pos) {
@@ -177,7 +176,7 @@ void render_start() {
 
 void check_enter_in() {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
-	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1))
+	if(keys[SDL_SCANCODE_RETURN] || controller_button(SDL_CONTROLLER_BUTTON_START) || controller_button(SDL_CONTROLLER_BUTTON_A))
 	{        
         cleanup_all_timers();
         cur_scr = ID_GAME;   
@@ -212,11 +211,10 @@ void render_enter_level() {
 
 static void credits_in() {
 	const Uint8 *keys = SDL_GetKeyboardState(0);
-#ifdef FOR_PSP
-	if( SDL_JoystickGetButton(stick, 11) ) {
-#else
-	if(keys[SDL_SCANCODE_RETURN] || SDL_JoystickGetButton(stick, 1)) {
-#endif
+	if(keys[SDL_SCANCODE_RETURN] ||
+       controller_button(SDL_CONTROLLER_BUTTON_B) ||
+       controller_button(SDL_CONTROLLER_BUTTON_BACK) ||
+       controller_button(SDL_CONTROLLER_BUTTON_A)) {
 		reset_collect_shader_effect();
 		cur_scr = ID_START;
 	}

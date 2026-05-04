@@ -22,6 +22,7 @@ static const char *img_str[] = { "black.bmp", "grass.bmp", "bluebrick.bmp", "blu
     0 };
 static const char *hstr[] = { "hero1.bmp", "hero2.bmp", "hero3.bmp", "hero4.bmp", "hero_jump1.bmp", "hero_shot1.bmp", "hero_shot2.bmp", "hero_shot3.bmp", "hero_shot4.bmp", 0 };
 static const char *ev[] = { "img/grandma/", 0 };
+SDL_GameController *controller = 0;
 SDL_Joystick *stick = 0;
 Emiter emiter;
 int custom_level = 0;
@@ -37,6 +38,43 @@ enum {
     GAME_WIDTH = 640,
     GAME_HEIGHT = 480
 };
+
+int controller_button(SDL_GameControllerButton button) {
+    return controller && SDL_GameControllerGetButton(controller, button);
+}
+
+Sint16 controller_axis(SDL_GameControllerAxis axis) {
+    if (!controller)
+        return 0;
+    return SDL_GameControllerGetAxis(controller, axis);
+}
+
+static void close_controller(void) {
+    if (controller) {
+        SDL_GameControllerClose(controller);
+        controller = 0;
+    }
+    stick = 0;
+}
+
+static int open_controller(int device_index) {
+    close_controller();
+
+    if (!SDL_IsGameController(device_index)) {
+        fprintf(stderr, "smx: device %d is not a mapped game controller\n", device_index);
+        return -1;
+    }
+
+    controller = SDL_GameControllerOpen(device_index);
+    if (!controller) {
+        fprintf(stderr, "smx: failed to open game controller %d: %s\n", device_index, SDL_GetError());
+        return -1;
+    }
+
+    stick = SDL_GameControllerGetJoystick(controller);
+    printf("smx: initialized controller: %s\n", SDL_GameControllerName(controller));
+    return 0;
+}
 
 void reload_level() {
     char sbuf[256];
@@ -142,67 +180,224 @@ GLuint gl_fx_program = 0;
 GLuint gl_fx_type5_program = 0;
 GLuint gl_fx_type0_program = 0;
 GLuint gl_fx_item5_program = 0;
+GLuint gl_fx_mix_program = 0;
 GLuint gl_vbo = 0;
 GLuint gl_vao = 0;
 GLuint gl_tex = 0;
+GLuint gl_pingpong_tex[2] = { 0, 0 };
+GLuint gl_pingpong_fbo[2] = { 0, 0 };
 GLint gl_fx_time_loc = -1;
 GLint gl_fx_resolution_loc = -1;
 GLint gl_fx_samp_loc = -1;
 GLint gl_fx_wobble_loc = -1;
+GLint gl_program_flip_y_loc = -1;
+GLint gl_flip_y_loc = -1;
 GLint gl_fx_type5_time_loc = -1;
 GLint gl_fx_type5_resolution_loc = -1;
 GLint gl_fx_type5_samp_loc = -1;
+GLint gl_fx_type5_flip_y_loc = -1;
 GLint gl_fx_type0_time_loc = -1;
 GLint gl_fx_type0_resolution_loc = -1;
 GLint gl_fx_type0_samp_loc = -1;
+GLint gl_fx_type0_flip_y_loc = -1;
 GLint gl_fx_item5_samp_loc = -1;
+GLint gl_fx_item5_time_loc = -1;
+GLint gl_fx_item5_flip_y_loc = -1;
+GLint gl_fx_mix_base_loc = -1;
+GLint gl_fx_mix_effect_loc = -1;
+GLint gl_fx_mix_amount_loc = -1;
+GLint gl_fx_mix_flip_y_loc = -1;
 int viewport_x = 0;
 int viewport_y = 0;
 int viewport_w = GAME_WIDTH;
 int viewport_h = GAME_HEIGHT;
-Uint32 collect_fx_until_ticks = 0;
-Uint32 collect_fx_decay_end_ticks = 0;
-int active_collect_fx_type = 0;
 
 #define COLLECT_FX_DURATION_MS      8000U
-#define COLLECT_FX_DECAY_MS         3000U
+#define COLLECT_FX_FADE_MS           900U
 #define COLLECT_FX_WOBBLE_BASE      0.012f
 #define COLLECT_FX_WOBBLE_INCREMENT 0.008f
 #define COLLECT_FX_WOBBLE_MAX       0.072f
+#define COLLECT_FX_MAX_STACK        8
 
-float collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE;
+enum {
+    COLLECT_SHADER_FX_NONE = 0,
+    COLLECT_SHADER_FX_WOBBLE = 1,
+    COLLECT_SHADER_FX_KALEIDO = 2,
+    COLLECT_SHADER_FX_POSTERIZE = 3,
+    COLLECT_SHADER_FX_BLURSHIFT = 5
+};
+
+typedef struct CollectShaderEffect {
+    int type;
+    Uint32 timeout_ticks;
+    float wobble_intensity;
+} CollectShaderEffect;
+
+CollectShaderEffect collect_fx_stack[COLLECT_FX_MAX_STACK];
+int collect_fx_count = 0;
+
+static int map_collect_effect_type(int item_type) {
+    if (item_type == 4)
+        return COLLECT_SHADER_FX_BLURSHIFT;
+    if (item_type == 1)
+        return COLLECT_SHADER_FX_KALEIDO;
+    if (item_type == 5)
+        return COLLECT_SHADER_FX_POSTERIZE;
+    if (item_type >= 2 && item_type <= 3)
+        return COLLECT_SHADER_FX_WOBBLE;
+    return COLLECT_SHADER_FX_NONE;
+}
+
+static GLuint collect_effect_program(int effect_type) {
+    if (effect_type == COLLECT_SHADER_FX_BLURSHIFT)
+        return gl_fx_type5_program;
+    if (effect_type == COLLECT_SHADER_FX_KALEIDO)
+        return gl_fx_type0_program;
+    if (effect_type == COLLECT_SHADER_FX_POSTERIZE)
+        return gl_fx_item5_program;
+    return gl_fx_program;
+}
+
+static void prune_collect_shader_effects(Uint32 now) {
+    int read_index = 0;
+    int write_index = 0;
+
+    for (; read_index < collect_fx_count; read_index++) {
+        if ((Sint32)(collect_fx_stack[read_index].timeout_ticks - now) > 0) {
+            if (write_index != read_index)
+                collect_fx_stack[write_index] = collect_fx_stack[read_index];
+            write_index++;
+        }
+    }
+
+    collect_fx_count = write_index;
+}
+
+static void bind_effect_uniforms(GLuint program, float wallclock_seconds, float wobble_intensity, float resolution_w, float resolution_h, int flip_y) {
+    glUseProgram(program);
+
+    if (program == gl_fx_program) {
+        if (gl_fx_samp_loc >= 0)
+            glUniform1i(gl_fx_samp_loc, 0);
+        if (gl_fx_time_loc >= 0)
+            glUniform1f(gl_fx_time_loc, wallclock_seconds);
+        if (gl_fx_resolution_loc >= 0)
+            glUniform2f(gl_fx_resolution_loc, resolution_w, resolution_h);
+        if (gl_fx_wobble_loc >= 0)
+            glUniform1f(gl_fx_wobble_loc, wobble_intensity);
+        if (gl_flip_y_loc >= 0)
+            glUniform1f(gl_flip_y_loc, flip_y ? 1.0f : 0.0f);
+    } else if (program == gl_fx_type5_program) {
+        if (gl_fx_type5_samp_loc >= 0)
+            glUniform1i(gl_fx_type5_samp_loc, 0);
+        if (gl_fx_type5_time_loc >= 0)
+            glUniform1f(gl_fx_type5_time_loc, wallclock_seconds);
+        if (gl_fx_type5_resolution_loc >= 0)
+            glUniform2f(gl_fx_type5_resolution_loc, resolution_w, resolution_h);
+        if (gl_fx_type5_flip_y_loc >= 0)
+            glUniform1f(gl_fx_type5_flip_y_loc, flip_y ? 1.0f : 0.0f);
+    } else if (program == gl_fx_type0_program) {
+        if (gl_fx_type0_samp_loc >= 0)
+            glUniform1i(gl_fx_type0_samp_loc, 0);
+        if (gl_fx_type0_time_loc >= 0)
+            glUniform1f(gl_fx_type0_time_loc, wallclock_seconds);
+        if (gl_fx_type0_resolution_loc >= 0)
+            glUniform2f(gl_fx_type0_resolution_loc, resolution_w, resolution_h);
+        if (gl_fx_type0_flip_y_loc >= 0)
+            glUniform1f(gl_fx_type0_flip_y_loc, flip_y ? 1.0f : 0.0f);
+    } else if (program == gl_fx_item5_program) {
+        if (gl_fx_item5_samp_loc >= 0)
+            glUniform1i(gl_fx_item5_samp_loc, 0);
+        if (gl_fx_item5_time_loc >= 0)
+            glUniform1f(gl_fx_item5_time_loc, wallclock_seconds);
+        if (gl_fx_item5_flip_y_loc >= 0)
+            glUniform1f(gl_fx_item5_flip_y_loc, flip_y ? 1.0f : 0.0f);
+    } else if (program == gl_program) {
+        if (gl_program_flip_y_loc >= 0)
+            glUniform1f(gl_program_flip_y_loc, flip_y ? 1.0f : 0.0f);
+    }
+}
+
+static void render_texture_pass(GLuint program, GLuint source_texture, GLuint target_fbo, int target_viewport_x, int target_viewport_y, int target_viewport_w, int target_viewport_h, float wallclock_seconds, float wobble_intensity, float resolution_w, float resolution_h) {
+    int flip_y = (source_texture == gl_tex) ? 0 : 1;
+
+    glBindFramebuffer(GL_FRAMEBUFFER, target_fbo);
+    glViewport(target_viewport_x, target_viewport_y, target_viewport_w, target_viewport_h);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, source_texture);
+    bind_effect_uniforms(program, wallclock_seconds, wobble_intensity, resolution_w, resolution_h, flip_y);
+
+    glBindVertexArray(gl_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+}
+
+static void render_mix_pass(GLuint base_texture, GLuint effect_texture, GLuint target_fbo, int target_viewport_x, int target_viewport_y, int target_viewport_w, int target_viewport_h, float mix_amount) {
+    int flip_y = (base_texture == gl_tex) ? 0 : 1;
+
+    glUseProgram(gl_fx_mix_program);
+    glBindFramebuffer(GL_FRAMEBUFFER, target_fbo);
+    glViewport(target_viewport_x, target_viewport_y, target_viewport_w, target_viewport_h);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, base_texture);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, effect_texture);
+
+    if (gl_fx_mix_base_loc >= 0)
+        glUniform1i(gl_fx_mix_base_loc, 0);
+    if (gl_fx_mix_effect_loc >= 0)
+        glUniform1i(gl_fx_mix_effect_loc, 1);
+    if (gl_fx_mix_amount_loc >= 0)
+        glUniform1f(gl_fx_mix_amount_loc, mix_amount);
+    if (gl_fx_mix_flip_y_loc >= 0)
+        glUniform1f(gl_fx_mix_flip_y_loc, flip_y ? 1.0f : 0.0f);
+
+    glBindVertexArray(gl_vao);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    glBindVertexArray(0);
+    glActiveTexture(GL_TEXTURE0);
+}
 
 void activate_collect_shader_effect(int item_type) {
-    int new_type = 0;
-    if (item_type == 4) {
-        new_type = 5;
-    } else if (item_type == 1) {
-        new_type = 2;
-    } else if (item_type == 5) {
-        new_type = 3;
-    } else if (item_type >= 2 && item_type <= 3) {
-        new_type = 1;
-    }
-    if (new_type == 0)
+    CollectShaderEffect effect;
+    int new_type = map_collect_effect_type(item_type);
+    int wobble_count = 0;
+    int index = 0;
+
+    if (new_type == COLLECT_SHADER_FX_NONE)
         return;
-    /* accumulate wobble intensity when collecting the same wobble-type item */
-    if (new_type == 1 && active_collect_fx_type == 1) {
-        collect_fx_wobble_intensity += COLLECT_FX_WOBBLE_INCREMENT;
-        if (collect_fx_wobble_intensity > COLLECT_FX_WOBBLE_MAX)
-            collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_MAX;
-    } else {
-        collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE;
+
+    for (; index < collect_fx_count; index++) {
+        if (collect_fx_stack[index].type == COLLECT_SHADER_FX_WOBBLE)
+            wobble_count++;
     }
-    active_collect_fx_type = new_type;
-    collect_fx_until_ticks = SDL_GetTicks() + COLLECT_FX_DURATION_MS;
-    collect_fx_decay_end_ticks = collect_fx_until_ticks + COLLECT_FX_DECAY_MS;
+
+    effect.type = new_type;
+    effect.timeout_ticks = SDL_GetTicks() + COLLECT_FX_DURATION_MS;
+    effect.wobble_intensity = COLLECT_FX_WOBBLE_BASE;
+
+    if (new_type == COLLECT_SHADER_FX_WOBBLE) {
+        effect.wobble_intensity += (float)wobble_count * COLLECT_FX_WOBBLE_INCREMENT;
+        if (effect.wobble_intensity > COLLECT_FX_WOBBLE_MAX)
+            effect.wobble_intensity = COLLECT_FX_WOBBLE_MAX;
+    }
+
+    if (collect_fx_count >= COLLECT_FX_MAX_STACK) {
+        memmove(collect_fx_stack, collect_fx_stack + 1, sizeof(collect_fx_stack[0]) * (COLLECT_FX_MAX_STACK - 1));
+        collect_fx_count = COLLECT_FX_MAX_STACK - 1;
+    }
+
+    collect_fx_stack[collect_fx_count++] = effect;
 }
 
 void reset_collect_shader_effect() {
-    collect_fx_until_ticks = 0;
-    collect_fx_decay_end_ticks = 0;
-    active_collect_fx_type = 0;
-    collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE;
+    collect_fx_count = 0;
 }
 
 static GLuint compile_shader(GLenum shader_type, const char *src) {
@@ -256,9 +451,10 @@ static int init_gl_renderer() {
         "#version 300 es\n"
         "layout(location = 0) in vec2 a_pos;\n"
         "layout(location = 1) in vec2 a_uv;\n"
+        "uniform float flip_y;\n"
         "out vec2 v_uv;\n"
         "void main() {\n"
-        "  v_uv = a_uv;\n"
+        "  v_uv = vec2(a_uv.x, mix(a_uv.y, 1.0 - a_uv.y, flip_y));\n"
         "  gl_Position = vec4(a_pos, 0.0, 1.0);\n"
         "}\n";
 
@@ -269,7 +465,21 @@ static int init_gl_renderer() {
         "uniform sampler2D u_tex;\n"
         "out vec4 frag_color;\n"
         "void main() {\n"
-        "  frag_color = texture(u_tex, v_uv);\n"
+        "  frag_color = vec4(texture(u_tex, v_uv).rgb, 1.0);\n"
+        "}\n";
+
+    static const char *fs_mix_src =
+        "#version 300 es\n"
+        "precision mediump float;\n"
+        "out vec4 color;\n"
+        "in vec2 v_uv;\n"
+        "uniform sampler2D base_samp;\n"
+        "uniform sampler2D effect_samp;\n"
+        "uniform float mix_amount;\n"
+        "void main(void) {\n"
+        "  vec3 base_col = texture(base_samp, v_uv).rgb;\n"
+        "  vec3 effect_col = texture(effect_samp, v_uv).rgb;\n"
+        "  color = vec4(mix(base_col, effect_col, clamp(mix_amount, 0.0, 1.0)), 1.0);\n"
         "}\n";
 
     static const char *fs_fx_src =
@@ -316,50 +526,54 @@ static int init_gl_renderer() {
         "uniform sampler2D samp;\n"
         "uniform float time_f;\n"
         "uniform vec2 iResolution;\n"
-        "float pingPong(float x, float length) {\n"
-        "  float modVal = mod(x, length * 2.0);\n"
-        "  return modVal <= length ? modVal : length * 2.0 - modVal;\n"
-        "}\n"
-        "vec4 blur(sampler2D image, vec2 uv, vec2 resolution) {\n"
-        "  vec2 texelSize = 1.0 / resolution;\n"
-        "  vec4 result = vec4(0.0);\n"
-        "  const float kernelVals[100] = float[](0.5, 1.0, 1.5, 2.0, 2.5, 2.5, 2.0, 1.5, 1.0, 0.5,\n"
-        "                                      1.0, 2.0, 2.5, 3.0, 3.5, 3.5, 3.0, 2.5, 2.0, 1.0,\n"
-        "                                      1.5, 2.5, 3.0, 3.5, 4.0, 4.0, 3.5, 3.0, 2.5, 1.5,\n"
-        "                                      2.0, 3.0, 3.5, 4.0, 4.5, 4.5, 4.0, 3.5, 3.0, 2.0,\n"
-        "                                      2.5, 3.5, 4.0, 4.5, 5.0, 5.0, 4.5, 4.0, 3.5, 2.5,\n"
-        "                                      2.5, 3.5, 4.0, 4.5, 5.0, 5.0, 4.5, 4.0, 3.5, 2.5,\n"
-        "                                      2.0, 3.0, 3.5, 4.0, 4.5, 4.5, 4.0, 3.5, 3.0, 2.0,\n"
-        "                                      1.5, 2.5, 3.0, 3.5, 4.0, 4.0, 3.5, 3.0, 2.5, 1.5,\n"
-        "                                      1.0, 2.0, 2.5, 3.0, 3.5, 3.5, 3.0, 2.5, 2.0, 1.0,\n"
-        "                                      0.5, 1.0, 1.5, 2.0, 2.5, 2.5, 2.0, 1.5, 1.0, 0.5);\n"
-        "  float kernelSum = 0.0;\n"
-        "  for (int i = 0; i < 100; i++) {\n"
-        "    kernelSum += kernelVals[i];\n"
-        "  }\n"
-        "  for (int x = -5; x <= 4; ++x) {\n"
-        "    for (int y = -5; y <= 4; ++y) {\n"
-        "      vec2 offset = vec2(float(x), float(y)) * texelSize;\n"
-        "      result += texture(image, uv + offset) * kernelVals[(y + 5) * 10 + (x + 5)];\n"
-        "    }\n"
-        "  }\n"
-        "  return result / kernelSum;\n"
-        "}\n"
-        "vec4 colorShift(vec4 col) {\n"
-        "  return vec4(\n"
-        "    0.5 + 0.5 * cos(col.r * 3.14159265 * 0.5),\n"
-        "    0.5 + 0.5 * cos(col.g * 3.14159265 * 0.5),\n"
-        "    0.5 + 0.5 * cos(col.b * 3.14159265 * 0.5),\n"
-        "    col.a\n"
-        "  );\n"
+        "const float PI = 3.14159265;\n"
+        "vec3 hypno(float t) {\n"
+        "  return 0.5 + 0.5 * cos(6.28318 * (t * 1.5 + vec3(0.0, 0.25, 0.5)));\n"
         "}\n"
         "void main(void) {\n"
-        "  float time_t = pingPong(time_f, 10.0) + 1.0;\n"
-        "  vec4 pix = blur(samp, v_uv, iResolution);\n"
-        "  pix = pix * time_t;\n"
-        "  pix = colorShift(pix);\n"
-        "  pix.rgb = mix(vec3(1.0), pix.rgb, 0.8);\n"
-        "  color = pix;\n"
+        "  float t = time_f;\n"
+        "  float bass = 0.5 + 0.5 * sin(t * 0.90);\n"
+        "  float mid = 0.5 + 0.5 * sin(t * 1.15 + 1.1);\n"
+        "  float hiMid = 0.5 + 0.5 * sin(t * 1.55 + 2.4);\n"
+        "  float treble = 0.5 + 0.5 * sin(t * 2.20 + 0.6);\n"
+        "  float ampPeak = 0.5 + 0.5 * sin(t * 0.75 + 0.8);\n"
+        "  float ampSmooth = 0.5 + 0.5 * sin(t * 0.45);\n"
+        "  float aspect = iResolution.x / iResolution.y;\n"
+        "  vec2 p = (v_uv - 0.5) * 2.0;\n"
+        "  p.x *= aspect;\n"
+        "  float d = length(p);\n"
+        "  float sphereRadius = 1.0 + bass * 0.3;\n"
+        "  float z = sqrt(max(0.0, sphereRadius * sphereRadius - d * d));\n"
+        "  float fisheye = atan(d, z) / (PI * 0.5);\n"
+        "  vec2 sphereUV = (d > 0.0) ? (p / d) * fisheye : vec2(0.0);\n"
+        "  sphereUV.x /= aspect;\n"
+        "  sphereUV = sphereUV * 0.5 + 0.5;\n"
+        "  float ringFreq = 15.0 + hiMid * 12.0;\n"
+        "  float rings = sin(d * ringFreq - t * 3.0 - bass * 8.0);\n"
+        "  sphereUV += (p / (d + 0.01)) * rings * 0.015 * (1.0 + mid);\n"
+        "  sphereUV = abs(fract(sphereUV * 0.5 + 0.5) * 2.0 - 1.0);\n"
+        "  float chroma = treble * 0.05;\n"
+        "  float bandAngle = atan(p.y, p.x);\n"
+        "  vec2 chromaDir = vec2(cos(bandAngle), sin(bandAngle)) * chroma;\n"
+        "  vec3 col;\n"
+        "  col.r = texture(samp, sphereUV + chromaDir).r;\n"
+        "  col.g = texture(samp, sphereUV).g;\n"
+        "  col.b = texture(samp, sphereUV - chromaDir).b;\n"
+        "  vec3 bandColor = hypno(d * 2.0 - t * 0.3 + bass);\n"
+        "  float bandMask = rings * 0.5 + 0.5;\n"
+        "  col = mix(col, col * bandColor, bandMask * (0.3 + mid * 0.25));\n"
+        "  vec3 normal = normalize(vec3(p, z));\n"
+        "  float lightAngle = t * 0.5 + mid * 3.0;\n"
+        "  vec3 lightDir = normalize(vec3(sin(lightAngle), cos(lightAngle), 1.0));\n"
+        "  float diff = max(dot(normal, lightDir), 0.0);\n"
+        "  float spec = pow(max(dot(reflect(-lightDir, normal), vec3(0.0, 0.0, 1.0)), 0.0), 16.0);\n"
+        "  col *= 0.6 + diff * 0.4;\n"
+        "  col += spec * 0.3 * (1.0 + ampPeak * 2.0);\n"
+        "  float coreGlow = exp(-d * 4.0) * (1.0 + bass * 1.2);\n"
+        "  col += vec3(1.0, 0.95, 0.85) * coreGlow * 0.2;\n"
+        "  col *= 0.85 + ampSmooth * 0.35;\n"
+        "  col = mix(col, vec3(1.0) - col, smoothstep(0.93, 1.0, ampPeak));\n"
+        "  color = vec4(col, 1.0);\n"
         "}\n";
 
     static const char *fs_fx_type0_src =
@@ -510,24 +724,33 @@ static int init_gl_renderer() {
         "  outCol = mix(outCol, baseCol, pingPong(pulse * PI, 5.0) * 0.18);\n"
         "  outCol = clamp(outCol, vec3(0.05), vec3(0.97));\n"
         "  vec3 finalRGB = mix(baseTex.rgb, outCol, pingPong(glow * PI, 5.0) * 0.8);\n"
-        "  color = vec4(finalRGB, baseTex.a);\n"
+        "  color = vec4(finalRGB, 1.0);\n"
         "}\n";
 
     static const char *fs_fx_item5_src =
         "#version 300 es\n"
-        "precision mediump float;\n"
+        "precision highp float;\n"
         "out vec4 color;\n"
         "in vec2 v_uv;\n"
         "uniform sampler2D samp;\n"
-        "vec3 NormalizePalette(vec3 col, float levels) {\n"
-        "  return floor(col * levels + 0.5) / levels;\n"
-        "}\n"
+        "uniform float time_f;\n"
         "void main(void) {\n"
-        "  vec2 pixelSize = vec2(256.0, 240.0);\n"
-        "  vec2 coord = floor(v_uv * pixelSize) / pixelSize;\n"
-        "  vec4 texColor = texture(samp, coord);\n"
-        "  vec3 quantizedColor = NormalizePalette(texColor.rgb, 6.0);\n"
-        "  color = vec4(quantizedColor, texColor.a);\n"
+        "  float rippleSpeed = 5.0;\n"
+        "  float rippleAmplitude = 0.03;\n"
+        "  float rippleWavelength = 10.0;\n"
+        "  float twistStrength = 1.0;\n"
+        "  float radius = length(v_uv - vec2(0.5, 0.5));\n"
+        "  float ripple = sin(v_uv.x * rippleWavelength + time_f * rippleSpeed) * rippleAmplitude;\n"
+        "  ripple += sin(v_uv.y * rippleWavelength + time_f * rippleSpeed) * rippleAmplitude;\n"
+        "  vec2 rippleUV = v_uv + vec2(ripple, ripple);\n"
+        "  float angle = twistStrength * (radius - 1.0) + time_f;\n"
+        "  float cosA = cos(angle);\n"
+        "  float sinA = sin(angle);\n"
+        "  mat2 rotationMatrix = mat2(cosA, -sinA, sinA, cosA);\n"
+        "  vec2 twistedUV = (rotationMatrix * (v_uv - vec2(0.5, 0.5))) + vec2(0.5, 0.5);\n"
+        "  vec4 originalColor = texture(samp, v_uv);\n"
+        "  vec4 twistedRippleColor = texture(samp, mix(rippleUV, twistedUV, 0.5));\n"
+        "  color = mix(originalColor, twistedRippleColor, 0.5);\n"
         "}\n";
 
     static const float quad[] = {
@@ -538,12 +761,13 @@ static int init_gl_renderer() {
     };
 
     gl_program = create_program(vs_src, fs_src);
+    gl_fx_mix_program = create_program(vs_src, fs_mix_src);
     gl_fx_program = create_program(vs_src, fs_fx_src);
     gl_fx_type5_program = create_program(vs_src, fs_fx_type5_src);
     gl_fx_type0_program = create_program(vs_src, fs_fx_type0_src);
     gl_fx_item5_program = create_program(vs_src, fs_fx_item5_src);
 
-    if (!gl_program || !gl_fx_program || !gl_fx_type5_program || !gl_fx_type0_program || !gl_fx_item5_program)
+    if (!gl_program || !gl_fx_mix_program || !gl_fx_program || !gl_fx_type5_program || !gl_fx_type0_program || !gl_fx_item5_program)
         return -1;
 
     glGenVertexArrays(1, &gl_vao);
@@ -566,8 +790,43 @@ static int init_gl_renderer() {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GAME_WIDTH, GAME_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
+    glGenTextures(2, gl_pingpong_tex);
+    glGenFramebuffers(2, gl_pingpong_fbo);
+
+    {
+        int ping_index = 0;
+        for (; ping_index < 2; ping_index++) {
+            glBindTexture(GL_TEXTURE_2D, gl_pingpong_tex[ping_index]);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, GAME_WIDTH, GAME_HEIGHT, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+            glBindFramebuffer(GL_FRAMEBUFFER, gl_pingpong_fbo[ping_index]);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gl_pingpong_tex[ping_index], 0);
+            if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+                fprintf(stderr, "Ping-pong framebuffer %d is incomplete\n", ping_index);
+                glBindFramebuffer(GL_FRAMEBUFFER, 0);
+                return -1;
+            }
+        }
+    }
+
     glUseProgram(gl_program);
     glUniform1i(glGetUniformLocation(gl_program, "u_tex"), 0);
+    gl_program_flip_y_loc = glGetUniformLocation(gl_program, "flip_y");
+
+    glUseProgram(gl_fx_mix_program);
+    gl_fx_mix_base_loc = glGetUniformLocation(gl_fx_mix_program, "base_samp");
+    if (gl_fx_mix_base_loc >= 0)
+        glUniform1i(gl_fx_mix_base_loc, 0);
+    gl_fx_mix_effect_loc = glGetUniformLocation(gl_fx_mix_program, "effect_samp");
+    if (gl_fx_mix_effect_loc >= 0)
+        glUniform1i(gl_fx_mix_effect_loc, 1);
+    gl_fx_mix_amount_loc = glGetUniformLocation(gl_fx_mix_program, "mix_amount");
+    gl_fx_mix_flip_y_loc = glGetUniformLocation(gl_fx_mix_program, "flip_y");
+
     glUseProgram(gl_fx_program);
     gl_fx_samp_loc = glGetUniformLocation(gl_fx_program, "samp");
     if (gl_fx_samp_loc >= 0) {
@@ -576,6 +835,7 @@ static int init_gl_renderer() {
     gl_fx_time_loc = glGetUniformLocation(gl_fx_program, "time_f");
     gl_fx_resolution_loc = glGetUniformLocation(gl_fx_program, "iResolution");
     gl_fx_wobble_loc = glGetUniformLocation(gl_fx_program, "wobble_intensity");
+    gl_flip_y_loc = glGetUniformLocation(gl_fx_program, "flip_y");
 
     glUseProgram(gl_fx_type5_program);
     gl_fx_type5_samp_loc = glGetUniformLocation(gl_fx_type5_program, "samp");
@@ -584,6 +844,7 @@ static int init_gl_renderer() {
     }
     gl_fx_type5_time_loc = glGetUniformLocation(gl_fx_type5_program, "time_f");
     gl_fx_type5_resolution_loc = glGetUniformLocation(gl_fx_type5_program, "iResolution");
+    gl_fx_type5_flip_y_loc = glGetUniformLocation(gl_fx_type5_program, "flip_y");
 
     glUseProgram(gl_fx_type0_program);
     gl_fx_type0_samp_loc = glGetUniformLocation(gl_fx_type0_program, "samp");
@@ -592,15 +853,19 @@ static int init_gl_renderer() {
     }
     gl_fx_type0_time_loc = glGetUniformLocation(gl_fx_type0_program, "time_f");
     gl_fx_type0_resolution_loc = glGetUniformLocation(gl_fx_type0_program, "iResolution");
+    gl_fx_type0_flip_y_loc = glGetUniformLocation(gl_fx_type0_program, "flip_y");
 
     glUseProgram(gl_fx_item5_program);
     gl_fx_item5_samp_loc = glGetUniformLocation(gl_fx_item5_program, "samp");
     if (gl_fx_item5_samp_loc >= 0) {
         glUniform1i(gl_fx_item5_samp_loc, 0);
     }
+    gl_fx_item5_time_loc = glGetUniformLocation(gl_fx_item5_program, "time_f");
+    gl_fx_item5_flip_y_loc = glGetUniformLocation(gl_fx_item5_program, "flip_y");
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
 
     return 0;
@@ -629,10 +894,10 @@ static void update_viewport() {
 }
 
 static void present_frame() {
-    GLuint active_program = gl_program;
-    float wobble_to_upload = collect_fx_wobble_intensity;
+    GLuint source_texture = gl_tex;
     struct timespec ts;
     float wallclock_seconds = 0.0f;
+    Uint32 now = SDL_GetTicks();
 
     timespec_get(&ts, TIME_UTC);
     wallclock_seconds = (float)(ts.tv_sec % 86400) + (float)ts.tv_nsec * 1.0e-9f;
@@ -641,89 +906,66 @@ static void present_frame() {
     glBindTexture(GL_TEXTURE_2D, gl_tex);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, front->w, front->h, GL_RGBA, GL_UNSIGNED_BYTE, front->pixels);
 
-    {
-        Uint32 now = SDL_GetTicks();
-        /* compute effective wobble for the decay phase */
-        if (active_collect_fx_type == 1 &&
-            (Sint32)(collect_fx_until_ticks - now) <= 0 &&
-            (Sint32)(collect_fx_decay_end_ticks - now) > 0) {
-            float t = (float)(Sint32)(collect_fx_decay_end_ticks - now)
-                      / (float)COLLECT_FX_DECAY_MS;
-            collect_fx_wobble_intensity = COLLECT_FX_WOBBLE_BASE
-                + t * (collect_fx_wobble_intensity - COLLECT_FX_WOBBLE_BASE);
-            if (collect_fx_wobble_intensity <= COLLECT_FX_WOBBLE_BASE + 0.0001f) {
-                reset_collect_shader_effect();
-            }
-        }
-        if (cur_scr == ID_CREDITS) {
-            /* smooth ping-pong: base → 8× base → base, 6-second period */
-            float ct = (float)fmod(wallclock_seconds, 6.0) / 6.0f;
-            float cycle = 0.5f - 0.5f * cosf(ct * 6.28318530f);
-            wobble_to_upload = COLLECT_FX_WOBBLE_BASE * (1.0f + 7.0f * cycle);
-            active_program = gl_fx_program;
-        } else if (active_collect_fx_type != 0 &&
-                   ((Sint32)(collect_fx_until_ticks - now) > 0 ||
-                    (Sint32)(collect_fx_decay_end_ticks - now) > 0)) {
-            if (active_collect_fx_type == 5) {
-                active_program = gl_fx_type5_program;
-            } else if (active_collect_fx_type == 2) {
-                active_program = gl_fx_type0_program;
-            } else if (active_collect_fx_type == 3) {
-                active_program = gl_fx_item5_program;
-            } else {
-                active_program = gl_fx_program;
-            }
-        } else if (active_collect_fx_type != 0) {
-            reset_collect_shader_effect();
-        }
-    }
-
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(viewport_x, viewport_y, viewport_w, viewport_h);
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
-    glViewport(viewport_x, viewport_y, viewport_w, viewport_h);
 
-    glUseProgram(active_program);
-    if (active_program == gl_fx_program) {
-        if (gl_fx_samp_loc >= 0) {
-            glUniform1i(gl_fx_samp_loc, 0);
-        }
-        if (gl_fx_time_loc >= 0) {
-            glUniform1f(gl_fx_time_loc, wallclock_seconds);
-        }
-        if (gl_fx_resolution_loc >= 0) {
-            glUniform2f(gl_fx_resolution_loc, (float)viewport_w, (float)viewport_h);
-        }
-        if (gl_fx_wobble_loc >= 0) {
-            glUniform1f(gl_fx_wobble_loc, wobble_to_upload);
-        }
-    } else if (active_program == gl_fx_type5_program) {
-        if (gl_fx_type5_samp_loc >= 0) {
-            glUniform1i(gl_fx_type5_samp_loc, 0);
-        }
-        if (gl_fx_type5_time_loc >= 0) {
-            glUniform1f(gl_fx_type5_time_loc, wallclock_seconds);
-        }
-        if (gl_fx_type5_resolution_loc >= 0) {
-            glUniform2f(gl_fx_type5_resolution_loc, (float)viewport_w, (float)viewport_h);
-        }
-    } else if (active_program == gl_fx_type0_program) {
-        if (gl_fx_type0_samp_loc >= 0) {
-            glUniform1i(gl_fx_type0_samp_loc, 0);
-        }
-        if (gl_fx_type0_time_loc >= 0) {
-            glUniform1f(gl_fx_type0_time_loc, wallclock_seconds);
-        }
-        if (gl_fx_type0_resolution_loc >= 0) {
-            glUniform2f(gl_fx_type0_resolution_loc, (float)viewport_w, (float)viewport_h);
-        }
-    } else if (active_program == gl_fx_item5_program) {
-        if (gl_fx_item5_samp_loc >= 0) {
-            glUniform1i(gl_fx_item5_samp_loc, 0);
+    if (cur_scr == ID_CREDITS) {
+        float ct = (float)fmod(wallclock_seconds, 6.0) / 6.0f;
+        float cycle = 0.5f - 0.5f * cosf(ct * 6.28318530f);
+        float wobble_to_upload = COLLECT_FX_WOBBLE_BASE * (1.0f + 7.0f * cycle);
+        render_texture_pass(gl_fx_program, source_texture, 0, viewport_x, viewport_y, viewport_w, viewport_h, wallclock_seconds, wobble_to_upload, (float)GAME_WIDTH, (float)GAME_HEIGHT);
+    } else {
+        int effect_index = 0;
+        int ping_index = 0;
+        float final_mix_amount = 1.0f;
+
+        prune_collect_shader_effects(now);
+
+        if (collect_fx_count == 0) {
+            render_texture_pass(gl_program, source_texture, 0, viewport_x, viewport_y, viewport_w, viewport_h, wallclock_seconds, 0.0f, (float)GAME_WIDTH, (float)GAME_HEIGHT);
+        } else {
+            if (collect_fx_count == 1) {
+                Sint32 remaining_ms = (Sint32)(collect_fx_stack[0].timeout_ticks - now);
+                if (remaining_ms < (Sint32)COLLECT_FX_FADE_MS) {
+                    if (remaining_ms < 0)
+                        remaining_ms = 0;
+                    final_mix_amount = (float)remaining_ms / (float)COLLECT_FX_FADE_MS;
+                }
+            }
+
+            for (; effect_index < collect_fx_count; effect_index++) {
+                CollectShaderEffect *effect = &collect_fx_stack[effect_index];
+                GLuint target_fbo = gl_pingpong_fbo[ping_index];
+
+                render_texture_pass(
+                    collect_effect_program(effect->type),
+                    source_texture,
+                    target_fbo,
+                    0,
+                    0,
+                    GAME_WIDTH,
+                    GAME_HEIGHT,
+                    wallclock_seconds,
+                    effect->wobble_intensity,
+                    (float)GAME_WIDTH,
+                    (float)GAME_HEIGHT
+                );
+
+                source_texture = gl_pingpong_tex[ping_index];
+                ping_index = 1 - ping_index;
+            }
+
+            if (final_mix_amount < 0.999f) {
+                GLuint base_texture = gl_pingpong_tex[ping_index];
+                render_texture_pass(gl_program, gl_tex, gl_pingpong_fbo[ping_index], 0, 0, GAME_WIDTH, GAME_HEIGHT, wallclock_seconds, 0.0f, (float)GAME_WIDTH, (float)GAME_HEIGHT);
+                render_mix_pass(base_texture, source_texture, 0, viewport_x, viewport_y, viewport_w, viewport_h, final_mix_amount);
+            } else {
+                render_texture_pass(gl_program, source_texture, 0, viewport_x, viewport_y, viewport_w, viewport_h, wallclock_seconds, 0.0f, (float)GAME_WIDTH, (float)GAME_HEIGHT);
+            }
         }
     }
-    glBindVertexArray(gl_vao);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindVertexArray(0);
 
     SDL_GL_SwapWindow(window);
 }
@@ -800,9 +1042,17 @@ static void rls() {
         level = NULL;
     }
 
-    if (gl_tex) {
-        glDeleteTextures(1, &gl_tex);
+    if (gl_pingpong_fbo[0] || gl_pingpong_fbo[1]) {
+        glDeleteFramebuffers(2, gl_pingpong_fbo);
+        gl_pingpong_fbo[0] = 0;
+        gl_pingpong_fbo[1] = 0;
+    }
+    if (gl_tex || gl_pingpong_tex[0] || gl_pingpong_tex[1]) {
+        GLuint textures_to_delete[3] = { gl_tex, gl_pingpong_tex[0], gl_pingpong_tex[1] };
+        glDeleteTextures(3, textures_to_delete);
         gl_tex = 0;
+        gl_pingpong_tex[0] = 0;
+        gl_pingpong_tex[1] = 0;
     }
     if (gl_vbo) {
         glDeleteBuffers(1, &gl_vbo);
@@ -831,6 +1081,10 @@ static void rls() {
     if (gl_fx_item5_program) {
         glDeleteProgram(gl_fx_item5_program);
         gl_fx_item5_program = 0;
+    }
+    if (gl_fx_mix_program) {
+        glDeleteProgram(gl_fx_mix_program);
+        gl_fx_mix_program = 0;
     }
     if (gl_ctx) {
         SDL_GL_DeleteContext(gl_ctx);
@@ -907,19 +1161,20 @@ void eventPump() {
                 }
             }
                 break;
-        case SDL_JOYDEVICEADDED:
-            stick = SDL_JoystickOpen(e.cdevice.which);
-            if(stick != NULL)
-                printf("smx: Sucessfully initalied Joystick\n");
+        case SDL_CONTROLLERDEVICEADDED:
+            if (controller == 0) {
+                open_controller(e.cdevice.which);
+            }
         break;
-        case SDL_JOYDEVICEREMOVED:
-            SDL_JoystickClose(stick);
-            stick = NULL;
-            printf("smx: Joystick closed..\n");
+        case SDL_CONTROLLERDEVICEREMOVED:
+            if (stick && SDL_JoystickInstanceID(stick) == e.cdevice.which) {
+                close_controller();
+                printf("smx: controller closed\n");
+            }
             break;
-        case SDL_JOYBUTTONDOWN:
-            /* Treat common back/cancel buttons like Escape. */
-            if (e.jbutton.button == 6 || e.jbutton.button == 11) {
+        case SDL_CONTROLLERBUTTONDOWN:
+            if (e.cbutton.button == SDL_CONTROLLER_BUTTON_BACK ||
+                e.cbutton.button == SDL_CONTROLLER_BUTTON_B) {
                 reset_collect_shader_effect();
                 if (cur_scr != ID_START) {
                     cleanup_all_timers();
@@ -927,6 +1182,8 @@ void eventPump() {
                 } else {
                     active = 0;
                 }
+            } else if (e.cbutton.button == SDL_CONTROLLER_BUTTON_START && cur_scr == ID_GAME) {
+                cur_scr = ID_PAUSED;
             }
             break;
         case SDL_WINDOWEVENT:
@@ -963,7 +1220,7 @@ int main(int argc, char **argv) {
     full = 1;
 #endif
 
-    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
+    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER | SDL_INIT_JOYSTICK | SDL_INIT_TIMER) < 0)
         return -1;
 
 #ifdef __EMSCRIPTEN__
@@ -1032,17 +1289,22 @@ int main(int argc, char **argv) {
         SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN);
     }
 
-    SDL_JoystickEventState(SDL_ENABLE);
+    SDL_GameControllerEventState(SDL_ENABLE);
 
     if(SDL_NumJoysticks() > 0)
         printf("smx: %d Joysticks Available\n", SDL_NumJoysticks());
     else if(SDL_NumJoysticks() == 0)
         printf("smx: 0 joysticks avilable..\n");
 
-    stick = SDL_JoystickOpen(0);
-
-    if(stick != NULL)
-        printf("smx: Joystick initalized.\n");
+    {
+        int controller_index;
+        for (controller_index = 0; controller_index < SDL_NumJoysticks(); controller_index++) {
+            if (SDL_IsGameController(controller_index)) {
+                open_controller(controller_index);
+                break;
+            }
+        }
+    }
 
     fflush(stdout);
 
@@ -1081,7 +1343,7 @@ int main(int argc, char **argv) {
 #endif
     }
     rls();
-    SDL_JoystickClose(stick);
+    close_controller();
     SDL_Quit();
     printf("smx: exit\n");
     return 0;

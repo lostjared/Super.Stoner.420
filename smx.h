@@ -12,8 +12,11 @@
 enum { ID_ENTER = 1, ID_GAME, ID_START , ID_CREDITS, ID_GAMEOVER , ID_PAUSED };
 extern SDL_Surface *gfx[16], *front, *hgfx[12], *particles[4], *bg, *collect[8], *lsd, *logo;
 extern struct SDL_Font *font, *cfont;
+extern SDL_GameController *controller;
 extern SDL_Joystick *stick;
 extern int score, lives;
+extern int controller_button(SDL_GameControllerButton button);
+extern Sint16 controller_axis(SDL_GameControllerAxis axis);
 extern void SDL_ReverseBlt(SDL_Surface *surf, SDL_Rect *rc, SDL_Surface *front_surf, SDL_Rect *rc2, Uint32 transparent);
 extern int SDL_Colide(SDL_Rect *rc, SDL_Rect *rc2);
 extern void activate_collect_shader_effect(int item_type);

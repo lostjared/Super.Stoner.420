@@ -75,16 +75,16 @@ void release_level(Level *lvl) {
 void render_pause() {
     SDL_Rect rc = { 50,50,640-100,480-100 };
     
-    if(stick && SDL_JoystickGetButton(stick, 1)) {
+    if(controller_button(SDL_CONTROLLER_BUTTON_A) || controller_button(SDL_CONTROLLER_BUTTON_START)) {
         cur_scr = ID_GAME;
     }
-    if(stick && SDL_JoystickGetButton(stick, 0)) {
+    if(controller_button(SDL_CONTROLLER_BUTTON_Y) || controller_button(SDL_CONTROLLER_BUTTON_B) || controller_button(SDL_CONTROLLER_BUTTON_BACK)) {
         game_over();
     }
     SDL_BlitSurface(bg, 0, front, 0);
     SDL_FillRect(front, &rc, 0);
-    SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, 255, 255, 255), "Paused - Press Circle to continue ");
-    SDL_PrintText(front, font, 75, 110, SDL_MapRGB(front->format, 255, 0, 0), "Press Triangle to Return to Menu ");
+    SDL_PrintText(front, font, 75, 75, SDL_MapRGB(front->format, 255, 255, 255), "Paused - Press A or Start to continue ");
+    SDL_PrintText(front, font, 75, 110, SDL_MapRGB(front->format, 255, 0, 0), "Press Y or Back to Return to Menu ");
 }
 
 void render_map(SDL_Surface *surf, Level *lvl) {
@@ -100,7 +100,7 @@ void render_map(SDL_Surface *surf, Level *lvl) {
         try_init_joystick();
     }
     
-    if(stick && SDL_JoystickGetButton(stick, 10)) {
+    if(controller_button(SDL_CONTROLLER_BUTTON_START)) {
         cur_scr = ID_PAUSED;
         return;
     }
@@ -254,27 +254,25 @@ static void move_left() {
     hero.dir = 0;
     if(hero.hpos > 0 && offset == 0) {
         if(hero.hpos >= 24) {
-            Uint8 check[5];
-            int a0 = hero.hpos-24, a1 = hero.hpos+1-24, a2 = hero.hpos+2-24, a3 = hero.hpos+3-24, a4 = hero.hpos-48;
+            Uint8 check[4];
+            int a0 = hero.hpos-24, a1 = hero.hpos+1-24, a2 = hero.hpos+2-24, a3 = hero.hpos+3-24;
             check[0] = tile_solid_safe(a0);
             check[1] = tile_solid_safe(a1);
             check[2] = tile_solid_safe(a2);
             check[3] = tile_solid_safe(a3);
-            check[4] = (a4 >= 0) ? tile_solid_safe(a4) : 1;
-            if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) hero.hpos -= 24;
+            if(!check[0] && !check[1] && !check[2] && !check[3]) hero.hpos -= 24;
             hero_ani = 1;
         }
     }
     else {
         if(hero.hpos + offset >= 24) {
-            Uint8 check[5];
+            Uint8 check[4];
             int base = hero.hpos + offset;
             check[0] = tile_solid_safe(base-24);
             check[1] = tile_solid_safe(base+1-24);
             check[2] = tile_solid_safe(base+2-24);
             check[3] = tile_solid_safe(base+3-24);
-            check[4] = (base >= 48) ? tile_solid_safe(base-48) : 1;
-            if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) scroll_left();
+            if(!check[0] && !check[1] && !check[2] && !check[3]) scroll_left();
             hero_ani = 1;
         }
     }
@@ -346,36 +344,32 @@ static void rls_bullet() {
 
 static int check_input() {
     const Uint8 *keys = SDL_GetKeyboardState(0);
-    int axis_x = 0;
-    
-    
-    if(stick != NULL) {
-        axis_x = SDL_JoystickGetAxis(stick, 0); 
-    }
+    int axis_x = controller_axis(SDL_CONTROLLER_AXIS_LEFTX);
     
     static int w = 0;
+    (void)w;
     
-    if((keys[SDL_SCANCODE_A] || (stick && SDL_JoystickGetButton(stick, 0))) && jump_ok == 1 && jump == 0)
+    if((keys[SDL_SCANCODE_A] || controller_button(SDL_CONTROLLER_BUTTON_A)) && jump_ok == 1 && jump == 0)
         jump = 1, shoot_ani = 0;
         
-    if((keys[SDL_SCANCODE_S] || (stick && SDL_JoystickGetButton(stick, 1))) && jump_ok == 1 && jump == 0) {
+    if((keys[SDL_SCANCODE_S] || controller_button(SDL_CONTROLLER_BUTTON_X)) && jump_ok == 1 && jump == 0) {
         if(shoot_ani == 0) { shoot_ani = 1, hero.cur_ani = 5; }
     }
     
     
 #ifdef FOR_PSP
-    if(stick && SDL_JoystickGetButton(stick, 7)) {
+    if(controller_button(SDL_CONTROLLER_BUTTON_DPAD_LEFT)) {
 #else
-    if((keys[SDL_SCANCODE_LEFT] || (stick && axis_x < -8000))) {
+    if((keys[SDL_SCANCODE_LEFT] || controller_button(SDL_CONTROLLER_BUTTON_DPAD_LEFT) || axis_x < -8000)) {
 #endif
         move_left();
         return 0;
     }
     
 #ifdef FOR_PSP
-    if(stick && SDL_JoystickGetButton(stick, 9)) {
+    if(controller_button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT)) {
 #else
-    if((keys[SDL_SCANCODE_RIGHT] || (stick && axis_x > 8000))) {
+    if((keys[SDL_SCANCODE_RIGHT] || controller_button(SDL_CONTROLLER_BUTTON_DPAD_RIGHT) || axis_x > 8000)) {
 #endif
         move_right();
         return 0;
@@ -574,13 +568,18 @@ void proc_particles(Emiter *e) {
             int move_speed = is_aggressive ? 48 : 24; 
             
             if(evil[i].dir == 0) {
+                Uint8 left_check[4];
                 check[0] = tile_solid_safe(evil[i].vpos - move_speed);
                 check[1] = tile_solid_safe(evil[i].vpos + 1 - move_speed);
                 check[2] = tile_solid_safe(evil[i].vpos + 2 - move_speed);
                 check[3] = tile_solid_safe(evil[i].vpos + 3 - move_speed);
-                check[4] = tile_solid_safe(evil[i].vpos - move_speed - 24);
-                
-                if(!check[0] && !check[1] && !check[2] && !check[3] && !check[4]) 
+
+                left_check[0] = check[0];
+                left_check[1] = check[1];
+                left_check[2] = check[2];
+                left_check[3] = check[3];
+
+                if(!left_check[0] && !left_check[1] && !left_check[2] && !left_check[3])
                     evil[i].vpos -= move_speed; 
                 else {
                     evil[i].dir = 1; 
