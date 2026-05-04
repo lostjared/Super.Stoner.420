@@ -1342,6 +1342,9 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
+#ifndef __EMSCRIPTEN__
+  SDL_GL_SetAttribute(SDL_GL_FRAMEBUFFER_SRGB_CAPABLE, 0);
+#endif
   window = SDL_CreateWindow("Super Stoner 420", SDL_WINDOWPOS_CENTERED,
                             SDL_WINDOWPOS_CENTERED, WIDTH, HEIGHT, mode);
   if (!window) {
@@ -1372,6 +1375,23 @@ int main(int argc, char **argv) {
   if (SDL_GL_SetSwapInterval(1) < 0) {
     fprintf(stderr, "Warning: could not enable vsync: %s\n", SDL_GetError());
   }
+
+  /* Belt-and-braces: if the driver ignored SDL_GL_FRAMEBUFFER_SRGB_CAPABLE=0
+   * (common on Windows/ANGLE), explicitly disable sRGB writes when the
+   * GL_EXT_sRGB_write_control extension is available. Without this the final
+   * framebuffer applies a linear->sRGB conversion to colors that are already
+   * encoded for display, producing the washed-out look. */
+#ifndef __EMSCRIPTEN__
+  {
+#ifndef GL_FRAMEBUFFER_SRGB_EXT
+#define GL_FRAMEBUFFER_SRGB_EXT 0x8DB9
+#endif
+    const GLubyte *exts = glGetString(GL_EXTENSIONS);
+    if (exts && strstr((const char *)exts, "GL_EXT_sRGB_write_control")) {
+      glDisable(GL_FRAMEBUFFER_SRGB_EXT);
+    }
+  }
+#endif
 
   if (init_gl_renderer() < 0) {
     SDL_Quit();
