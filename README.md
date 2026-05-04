@@ -5,7 +5,7 @@
 
 
  * Updated
-Play a Web Assembly port of this game in your browser: https://lostsidedead.biz/super/superstoner420.html
+Play a Web Assembly port of this game in your browser: https://lostsidedead.biz/super/
 
 Controls
 
